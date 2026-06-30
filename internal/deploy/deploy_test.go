@@ -112,6 +112,27 @@ func TestPlanUsesConfiguredDomainAndImagePrefix(t *testing.T) {
 	}
 }
 
+func TestPlanAllowsK8sDashboardServiceName(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM busybox\nEXPOSE 3000\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Plan(Options{
+		ServiceName: "k8s",
+		CWD:         dir,
+		Domain:      "gron-studio.com",
+		ImageTag:    "test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if result.Host != "k8s.gron-studio.com" {
+		t.Fatalf("unexpected host %q", result.Host)
+	}
+}
+
 func TestPlanMountsEnvFileAsSecretReference(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM busybox\n"), 0o644); err != nil {
@@ -140,6 +161,27 @@ func TestPlanMountsEnvFileAsSecretReference(t *testing.T) {
 	}
 	if result.EnvFilePath != envFile {
 		t.Fatalf("unexpected env file path %q", result.EnvFilePath)
+	}
+}
+
+func TestPlanUsesConfiguredServiceAccount(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM busybox\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Plan(Options{
+		ServiceName:    "demo",
+		CWD:            dir,
+		ServiceAccount: "demo-reader",
+		ImageTag:       "test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(result.Manifest, "serviceAccountName: demo-reader") {
+		t.Fatalf("manifest missing service account:\n%s", result.Manifest)
 	}
 }
 

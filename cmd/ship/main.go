@@ -56,6 +56,7 @@ func runDeploy(ctx context.Context, args []string) error {
 	flags.StringVar(&opts.ImageTag, "image-tag", configDefault(config, "IMAGE_TAG", ""), "image tag")
 	flags.StringVar(&opts.KindCluster, "kind-cluster", configDefault(config, "KIND_CLUSTER", "ship"), "kind cluster name")
 	flags.StringVar(&opts.EnvFile, "env-file", "", "optional env file to mount as a Kubernetes Secret")
+	flags.StringVar(&opts.ServiceAccount, "service-account", "", "optional Kubernetes ServiceAccount name for the Deployment")
 
 	if err := flags.Parse(args); err != nil {
 		return err

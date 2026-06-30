@@ -19,6 +19,10 @@ func manifestFor(opts Options, host string, image string) string {
                 name: %s-env
 `, opts.ServiceName)
 	}
+	serviceAccountName := ""
+	if opts.ServiceAccount != "" {
+		serviceAccountName = fmt.Sprintf("      serviceAccountName: %s\n", opts.ServiceAccount)
+	}
 	fmt.Fprintf(&b, `apiVersion: v1
 kind: Namespace
 metadata:
@@ -47,6 +51,7 @@ spec:
       labels:
         app.kubernetes.io/name: %s
     spec:
+%s
       containers:
         - name: app
           image: %s
@@ -96,6 +101,6 @@ spec:
           kind: Service
           name: %s
           port: 80
-`, opts.Namespace, opts.Exposure, tailscaleOnlyLabel, opts.ServiceName, opts.Namespace, opts.ServiceName, opts.Exposure, tailscaleOnlyLabel, opts.ServiceName, opts.ServiceName, image, envFrom, opts.Port, opts.ServiceName, opts.Namespace, opts.ServiceName, opts.Exposure, tailscaleOnlyLabel, opts.ServiceName, opts.ServiceName, opts.Namespace, opts.ServiceName, opts.Exposure, tailscaleOnlyLabel, opts.GatewayName, opts.GatewayNamespace, host, opts.ServiceName)
+`, opts.Namespace, opts.Exposure, tailscaleOnlyLabel, opts.ServiceName, opts.Namespace, opts.ServiceName, opts.Exposure, tailscaleOnlyLabel, opts.ServiceName, opts.ServiceName, serviceAccountName, image, envFrom, opts.Port, opts.ServiceName, opts.Namespace, opts.ServiceName, opts.Exposure, tailscaleOnlyLabel, opts.ServiceName, opts.ServiceName, opts.Namespace, opts.ServiceName, opts.Exposure, tailscaleOnlyLabel, opts.GatewayName, opts.GatewayNamespace, host, opts.ServiceName)
 	return b.String()
 }

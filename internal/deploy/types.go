@@ -19,6 +19,7 @@ type Options struct {
 	ImageTag         string
 	KindCluster      string
 	EnvFile          string
+	ServiceAccount   string
 }
 
 type Result struct {

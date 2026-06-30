@@ -2,6 +2,7 @@
 .github
 .env
 .env.*
+.ship.env
 node_modules
 dist
 .tanstack

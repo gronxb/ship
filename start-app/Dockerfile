@@ -12,8 +12,9 @@ FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 RUN corepack enable
+RUN apk add --no-cache kubectl
 COPY --from=build /app ./
 RUN addgroup -S ship && adduser -S ship -G ship && chown -R ship:ship /app
 USER ship
 EXPOSE 3000
-CMD ["pnpm", "preview", "--host", "0.0.0.0"]
+CMD ["pnpm", "preview", "--host", "0.0.0.0", "--port", "3000"]

@@ -143,7 +143,7 @@ func validate(opts Options) error {
 		return errors.New("service name must be DNS-safe: lowercase letters, numbers, hyphens")
 	}
 	switch opts.ServiceName {
-	case "k8s", "www", "api", "admin":
+	case "www", "api", "admin":
 		return fmt.Errorf("reserved service name: %s", opts.ServiceName)
 	}
 	if opts.Port < 0 || opts.Port > 65535 {
