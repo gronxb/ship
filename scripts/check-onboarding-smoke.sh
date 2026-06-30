@@ -132,7 +132,6 @@ SHIP_TEST_INSTALL="$root/install.sh" \
 SHIP_TEST_TARBALL="$repo_tar" \
 SHIP_TEST_LOG="$log" \
 SHIP_DOMAIN=example.com \
-SHIP_DNS=manual \
 SHIP_DASHBOARD_HOST=stale.example.net \
 SHIP_ONBOARD=1 \
 sh -c 'curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh' \
@@ -143,6 +142,13 @@ PATH="$home/.local/bin:$PATH" HOME="$home" ship --help > "$work/help"
 
 grep -Fq 'ready: ship CLI and https://k8s.example.com' "$work/stdout"
 grep -Fq 'manual dns: create *.example.com' "$work/stdout"
+grep -Fq 'SHIP_DNS=manual' "$home/.config/ship/config.env"
+if grep -iq 'cloudflare' "$work/stdout" "$work/stderr"; then
+  cat "$work/stdout"
+  cat "$work/stderr" >&2
+  printf 'default onboarding must not mention Cloudflare\n' >&2
+  exit 1
+fi
 grep -Fq 'docker build' "$log"
 grep -Fq 'kind load docker-image --name ship ship/k8s:' "$log"
 grep -Fq 'kubectl rollout status deployment/k8s -n ship-services --timeout=180s' "$log"

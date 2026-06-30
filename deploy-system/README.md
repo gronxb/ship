@@ -12,9 +12,8 @@ $EDITOR ../.env
 
 `./deploy-domain.sh` reads `../.env` and `~/.config/ship/config.env`, renders the
 `example.com` Gateway template with your domain, applies the Tailscale Gateway,
-then tries Cloudflare DNS in `SHIP_DNS=auto`. If Cloudflare is not configured or
-no DNS token is present, it prints the manual wildcard DNS record and exits
-successfully.
+then prints the manual wildcard DNS record to create wherever the domain is
+managed.
 
 `./deploy-dashboard.sh` applies the minimal dashboard RBAC and runs `ship` against
 `../start-app`, so `https://k8s.$SHIP_DOMAIN` is backed by an in-cluster
@@ -40,22 +39,17 @@ Render the final YAML:
 ./render.sh
 ```
 
-Manual DNS mode:
+Default DNS mode:
 
 ```sh
-SHIP_DNS=manual ./deploy-domain.sh
+./deploy-domain.sh
 ```
 
-Strict Cloudflare mode:
+The command prints:
 
-```sh
-export CLOUDFLARE_API_TOKEN=<token-with-zone-dns-edit>
-export CLOUDFLARE_ZONE_ID=<optional-zone-id>
-SHIP_DNS=cloudflare ./deploy-domain.sh
+```text
+manual dns: create *.$SHIP_DOMAIN as DNS-only CNAME/A record to <gateway-address>
 ```
-
-When `CLOUDFLARE_ZONE_ID` is not set, the token also needs Zone Read so Ship can
-look up the zone id from `SHIP_DOMAIN`.
 
 ## Internet Gateway
 

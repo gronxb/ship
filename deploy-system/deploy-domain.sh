@@ -36,18 +36,18 @@ cleanup_dns_error() {
 }
 trap cleanup_dns_error EXIT
 
-case "${SHIP_DNS:-auto}" in
+case "${SHIP_DNS:-manual}" in
   manual)
     printf 'manual dns: create *.%s as DNS-only CNAME/A record to %s\n' "$SHIP_DOMAIN" "$address"
     ;;
   auto | cloudflare)
     if ./publish-cloudflare-dns.sh "$address" 2>"$dns_error"; then
       printf 'ok: *.%s points to %s via Cloudflare DNS-only record\n' "$SHIP_DOMAIN" "$address"
-    elif [ "${SHIP_DNS:-auto}" = "cloudflare" ]; then
+    elif [ "${SHIP_DNS:-manual}" = "cloudflare" ]; then
       cat "$dns_error" >&2
       exit 1
     else
-      printf 'cloudflare dns skipped: %s\n' "$(sed -n '1p' "$dns_error")"
+      printf 'automatic dns skipped: %s\n' "$(sed -n '1p' "$dns_error")"
       printf 'manual dns: create *.%s as DNS-only CNAME/A record to %s\n' "$SHIP_DOMAIN" "$address"
     fi
     ;;

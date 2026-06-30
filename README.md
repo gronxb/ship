@@ -16,9 +16,9 @@ The project has three parts:
 ## Status
 
 Ship is production-oriented but intentionally small. The default exposure mode is
-tailnet-only through the Tailscale Kubernetes Operator. Cloudflare is optional:
-use it for automatic DNS when your zone is there, or keep `SHIP_DNS=manual` and
-create the wildcard DNS record at any provider.
+tailnet-only through the Tailscale Kubernetes Operator. DNS setup is
+provider-agnostic: onboarding prints the exact wildcard record to create wherever
+the domain is managed.
 
 ## Requirements
 
@@ -30,9 +30,6 @@ create the wildcard DNS record at any provider.
 - Envoy Gateway
 - Tailscale Kubernetes Operator for the default private Gateway
 - cert-manager and a wildcard certificate issuer
-- `CLOUDFLARE_API_TOKEN` with Zone DNS Edit only when forcing Cloudflare DNS.
-  If `CLOUDFLARE_ZONE_ID` is not set, the token also needs Zone Read so Ship can
-  look up the zone.
 - pnpm 10 or newer for dashboard development
 
 ## Quick Start
@@ -47,8 +44,7 @@ curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-If your DNS zone is not in Cloudflare, keep the same command. Ship prints the
-manual wildcard record to create:
+Ship prints the wildcard DNS record to create at your DNS provider:
 
 ```sh
 manual dns: create *.mydomain.com as DNS-only CNAME/A record to <gateway-address>
@@ -96,6 +92,7 @@ SHIP_NAMESPACE=ship-services
 SHIP_GATEWAY_NAMESPACE=ship-system
 SHIP_GATEWAY_NAME=ship-tailscale
 SHIP_INTERNET_GATEWAY_NAME=ship-internet
+SHIP_DNS=manual
 SHIP_IMAGE_PREFIX=ship
 KIND_CLUSTER=ship
 REGISTRY=
@@ -144,22 +141,12 @@ Tailscale mode is the default:
 - `*.mydomain.com` resolves to the Tailscale Gateway address
 - Dockerfile projects do not need host port mapping
 
-`deploy-domain.sh` tries the Cloudflare DNS helper in `SHIP_DNS=auto` mode. If
-Cloudflare is not configured or no DNS token is present, it exits successfully
-and prints the manual wildcard record. Force manual mode:
+`deploy-domain.sh` applies the Gateway and prints the wildcard DNS record by
+default. Create that record wherever the domain is managed:
 
 ```sh
 cd deploy-system
-SHIP_DNS=manual ./deploy-domain.sh
-```
-
-Force Cloudflare mode:
-
-```sh
-cd deploy-system
-export CLOUDFLARE_API_TOKEN=<token-with-zone-dns-edit>
-export CLOUDFLARE_ZONE_ID=<optional-zone-id>
-SHIP_DNS=cloudflare ./deploy-domain.sh
+./deploy-domain.sh
 ```
 
 Deploy the dashboard after the Gateway:

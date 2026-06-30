@@ -34,7 +34,7 @@ SHIP_NAMESPACE=ship-services
 SHIP_GATEWAY_NAMESPACE=ship-system
 SHIP_GATEWAY_NAME=ship-tailscale
 SHIP_INTERNET_GATEWAY_NAME=ship-internet
-SHIP_DNS=auto
+SHIP_DNS=manual
 SHIP_IMAGE_PREFIX=$prefix
 KIND_CLUSTER=ship
 EOF
