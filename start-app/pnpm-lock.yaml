@@ -100,11 +100,11 @@ importers:
         specifier: ^28
         version: 28.1.0
       prettier:
-        specifier: ^3.8.3
-        version: 3.9.1
+        specifier: ^3.9.4
+        version: 3.9.4
       prettier-plugin-tailwindcss:
         specifier: ^0.8.0
-        version: 0.8.0(prettier@3.9.1)
+        version: 0.8.0(prettier@3.9.4)
       typescript:
         specifier: ^6
         version: 6.0.3
@@ -3433,6 +3433,11 @@ packages:
 
   prettier@3.9.1:
     resolution: {integrity: sha512-ppiDo2CSwexck1eyZUwJHg/N3nf1+6IRCv7W/VJ5vaLnVCmB7+3CdRfMwoCHBBX6xTrREDTksZ4OZl5SSf4zXA==}
+    engines: {node: '>=14'}
+    hasBin: true
+
+  prettier@3.9.4:
+    resolution: {integrity: sha512-yWG/o/4oJfo036EKAfK6ACAoDOfHeRHx4tuxkfBZiauURiaSmYwlpOr5LQqKtIkRD2z1PLteme2WoxEnj4tHTg==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -7422,11 +7427,13 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier-plugin-tailwindcss@0.8.0(prettier@3.9.1):
+  prettier-plugin-tailwindcss@0.8.0(prettier@3.9.4):
     dependencies:
-      prettier: 3.9.1
+      prettier: 3.9.4
 
   prettier@3.9.1: {}
+
+  prettier@3.9.4: {}
 
   pretty-format@27.5.1:
     dependencies:
