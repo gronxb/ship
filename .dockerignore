@@ -1,0 +1,16 @@
+.git
+.github
+.omo
+.omx
+.codegraph
+.env
+.env.*
+bin
+dist
+node_modules
+start-app/node_modules
+start-app/dist
+start-app/.tanstack
+start-app/.output
+start-app/.vinxi
+*.tsbuildinfo

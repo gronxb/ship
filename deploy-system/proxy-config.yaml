@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ship-dashboard-proxy-caddy
+  namespace: ship-system
+data:
+  Caddyfile: |
+    {
+    	admin off
+    }
+
+    (forwarded_headers) {
+    	header_up Host {host}
+    	header_up X-Forwarded-Host {host}
+    	header_up X-Forwarded-Proto https
+    	header_up X-Real-IP {remote_host}
+    }
+
+    :8080 {
+    	respond /health "ok" 200
+
+    	@deploy_dashboard host k8s.example.com
+    	handle @deploy_dashboard {
+    		reverse_proxy 127.0.0.1:9292 {
+    			import forwarded_headers
+    		}
+    	}
+
+    	respond "route not managed by deploy dashboard" 404
+    }

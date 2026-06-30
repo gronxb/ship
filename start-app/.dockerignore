@@ -1,0 +1,11 @@
+.git
+.github
+.env
+.env.*
+node_modules
+dist
+.tanstack
+.output
+.vinxi
+*.tsbuildinfo
+coverage
