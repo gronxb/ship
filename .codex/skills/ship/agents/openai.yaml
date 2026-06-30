@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ship"
+  short_description: "Deploy Dockerfile projects with Ship"
+  default_prompt: "Use $ship to deploy the current Dockerfile project as demo."
