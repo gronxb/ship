@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -18,12 +19,18 @@ type DashboardTab = "network" | "terminal" | "details"
 
 export function DeploymentCard({
   deployment,
+  onExposureChanged,
+  onRequest,
   requestLog,
 }: {
   readonly deployment: Deployment
+  readonly onExposureChanged: () => Promise<void>
+  readonly onRequest: (request: string) => void
   readonly requestLog: readonly string[]
 }) {
   const [activeTab, setActiveTab] = useState<DashboardTab>("network")
+  const [updatingExposure, setUpdatingExposure] = useState(false)
+  const [exposureError, setExposureError] = useState("")
 
   useEffect(() => {
     function syncHashTab(): void {
@@ -36,9 +43,38 @@ export function DeploymentCard({
     }
   }, [])
 
+  async function exposeToInternet(): Promise<void> {
+    setUpdatingExposure(true)
+    setExposureError("")
+    onRequest("PATCH /api/deployments")
+    try {
+      const response = await fetch("/api/deployments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceName: deployment.serviceName,
+          namespace: deployment.namespace,
+          exposure: "internet",
+        }),
+      })
+      if (!response.ok) {
+        throw new Error(await response.text())
+      }
+      await onExposureChanged()
+    } catch (caught) {
+      if (caught instanceof Error) {
+        setExposureError(caught.message)
+        return
+      }
+      throw caught
+    } finally {
+      setUpdatingExposure(false)
+    }
+  }
+
   return (
     <Card className="transition-colors hover:ring-foreground/20">
-      <CardHeader>
+      <CardHeader className="gap-3 md:grid-cols-[1fr_auto]">
         <CardTitle className="flex flex-wrap items-center gap-2">
           <span>{deployment.serviceName}</span>
           <ExposureBadge deployment={deployment} />
@@ -48,7 +84,28 @@ export function DeploymentCard({
             <Badge variant="outline">applied</Badge>
           )}
         </CardTitle>
-        <CardDescription className="break-all">{deployment.host}</CardDescription>
+        <CardDescription className="break-all">
+          {deployment.host}
+        </CardDescription>
+        <div className="grid gap-2 md:col-start-2 md:row-span-2 md:row-start-1 md:justify-items-end">
+          {deployment.tailscaleOnly ? (
+            <Button
+              aria-pressed={false}
+              disabled={updatingExposure}
+              onClick={() => void exposeToInternet()}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              {updatingExposure ? "Exposing" : "Expose to internet"}
+            </Button>
+          ) : null}
+          {exposureError ? (
+            <p className="max-w-64 text-right text-xs text-destructive">
+              {exposureError}
+            </p>
+          ) : null}
+        </div>
       </CardHeader>
       <CardContent>
         <Tabs
@@ -145,7 +202,7 @@ function KeyValue({
   return (
     <div>
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 break-all font-medium">{value}</p>
+      <p className="mt-1 font-medium break-all">{value}</p>
     </div>
   )
 }

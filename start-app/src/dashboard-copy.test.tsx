@@ -2,8 +2,10 @@
 
 import {
   cleanup,
+  fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -88,7 +90,7 @@ describe("dashboard surface", () => {
     expect(vi.mocked(fetch)).not.toHaveBeenCalled()
   })
 
-  it("renders deployed containers as read-only cards with logs", async () => {
+  it("renders deployed containers as cards with logs and exposure controls", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => {
@@ -121,6 +123,12 @@ describe("dashboard surface", () => {
     expect(screen.getByText("demo")).toBeDefined()
     expect(screen.getByText("demo.example.com")).toBeDefined()
     expect(screen.getByRole("button", { name: "Refresh" })).toBeDefined()
+    expect(
+      screen.getByRole("button", { name: "Expose to internet" })
+    ).toBeDefined()
+    expect(
+      screen.getByRole("link", { name: "Star on GitHub" }).getAttribute("href")
+    ).toBe("https://github.com/gronxb/ship")
     expect(screen.queryByRole("button", { name: /deploy/i })).toBeNull()
     expect(screen.queryByText(/[ㄱ-ㅎㅏ-ㅣ가-힣]/)).toBeNull()
     expect(renderedTextIncludes("GET https://demo.example.com")).toBe(true)
@@ -136,6 +144,73 @@ describe("dashboard surface", () => {
     cleanup()
     await renderDashboardAt("/?tab=details")
     expect(renderedTextIncludes("kind: Deployment")).toBe(true)
+  })
+
+  it("records exposure updates in the network log", async () => {
+    const initialDeployment = {
+      serviceName: "demo",
+      host: "demo.example.com",
+      image: "ship/demo:latest",
+      namespace: "gron-services",
+      port: 3000,
+      exposure: "tailscale" as const,
+      tailscaleOnly: true,
+      dryRun: false,
+      commands: ["kubectl apply -f -"],
+      manifest: "kind: Deployment",
+      containerLogs: "listening on 3000",
+    }
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (init?.method === "PATCH") {
+          return new Response(
+            JSON.stringify({
+              deployment: {
+                serviceName: "demo",
+                exposure: "internet",
+                tailscaleOnly: false,
+              },
+            }),
+            { headers: { "Content-Type": "application/json" } }
+          )
+        }
+        return new Response(
+          JSON.stringify({
+            deployments: [
+              {
+                ...initialDeployment,
+                exposure: "internet",
+                tailscaleOnly: false,
+              },
+            ],
+          }),
+          { headers: { "Content-Type": "application/json" } }
+        )
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    window.history.replaceState(null, "", "/")
+    render(<DeploymentDashboard initialDeployments={[initialDeployment]} />)
+    fireEvent.click(screen.getByRole("button", { name: "Expose to internet" }))
+
+    await waitFor(() => {
+      expect(renderedTextIncludes("PATCH /api/deployments")).toBe(true)
+    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/deployments",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          serviceName: "demo",
+          namespace: "gron-services",
+          exposure: "internet",
+        }),
+      })
+    )
+    expect(
+      screen.queryByRole("button", { name: "Expose to internet" })
+    ).toBeNull()
   })
 })
 

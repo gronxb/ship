@@ -12,6 +12,10 @@ export const statePath = join(
 const shipConfig = loadShipConfig()
 
 export const serviceNamespace = configValue("SHIP_NAMESPACE", "ship-services")
+export const gatewayNamespace = configValue(
+  "SHIP_GATEWAY_NAMESPACE",
+  "ship-system"
+)
 export const internetGatewayName = configValue(
   "SHIP_INTERNET_GATEWAY_NAME",
   "ship-internet"

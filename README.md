@@ -10,8 +10,8 @@ The project has three parts:
 - `cmd/ship`: CLI that builds an image, applies Kubernetes resources, and records
   deployment state.
 - `deploy-system`: Gateway, dashboard bootstrap, and DNS helper scripts.
-- `start-app`: read-only dashboard for deployed containers, network requests,
-  terminal commands, manifests, and container logs.
+- `start-app`: dashboard for deployed containers, exposure controls, network
+  requests, terminal commands, manifests, and container logs.
 
 ## Status
 
@@ -110,11 +110,11 @@ ship --service demo --dry-run --json
 
 ## Dashboard
 
-The dashboard is intentionally read-only. It shows deployed service cards,
-network request traces, terminal commands, rendered manifests, and recent
-container logs without deploying new workloads from the browser. Onboarding
-deploys it as the normal Ship service `k8s`, so `https://k8s.mydomain.com` is
-the first verification target.
+The dashboard shows deployed service cards, network request traces, terminal
+commands, rendered manifests, recent container logs, and a control for promoting
+a Tailscale-only route to the internet Gateway. It still does not deploy new
+workloads from the browser. Onboarding deploys it as the normal Ship service
+`k8s`, so `https://k8s.mydomain.com` is the first verification target.
 
 Redeploy it manually:
 
@@ -198,7 +198,7 @@ dashboard container configuration.
 cmd/ship/          CLI entrypoint
 internal/deploy/   deployment planner and Kubernetes manifest renderer
 deploy-system/     Gateway, dashboard bootstrap, DNS, and validation scripts
-start-app/         read-only dashboard
+start-app/         dashboard
 scripts/           repository maintenance checks
 ```
 

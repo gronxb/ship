@@ -1,8 +1,8 @@
 # Ship Dashboard
 
-Read-only dashboard for Ship deployments. It lists deployed containers as cards
-and exposes network requests, terminal commands, rendered manifests, and recent
-container logs.
+Dashboard for Ship deployments. It lists deployed containers as cards and
+exposes network requests, terminal commands, rendered manifests, recent
+container logs, and route exposure controls.
 
 ```sh
 pnpm install
