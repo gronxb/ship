@@ -1,6 +1,6 @@
-.PHONY: test go-test dashboard-test dashboard-build readiness deploy-system-validate
+.PHONY: test go-test dashboard-test dashboard-build readiness onboarding-smoke deploy-system-validate
 
-test: readiness go-test dashboard-test dashboard-build
+test: readiness onboarding-smoke go-test dashboard-test dashboard-build
 
 go-test:
 	go test ./...
@@ -13,6 +13,9 @@ dashboard-build:
 
 readiness:
 	./scripts/check-release-readiness.sh
+
+onboarding-smoke:
+	./scripts/check-onboarding-smoke.sh
 
 deploy-system-validate:
 	cd deploy-system && ./validate.sh

@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 
+cd "$(dirname "$0")"
 ./validate.sh
 . ./ship-env.sh
 
@@ -16,7 +17,6 @@ EOF
 fi
 
 ./render.sh | kubectl apply -f -
-kubectl rollout status deployment/ship-dashboard-proxy -n "$SHIP_GATEWAY_NAMESPACE" --timeout=180s
 
 address=""
 for _ in $(seq 1 60); do
@@ -30,6 +30,29 @@ if [ -z "$address" ]; then
   exit 1
 fi
 
-./publish-cloudflare-dns.sh "$address"
+dns_error="$(mktemp)"
+cleanup_dns_error() {
+  rm -f "$dns_error"
+}
+trap cleanup_dns_error EXIT
 
-printf 'ok: *.%s points to %s via Cloudflare DNS-only record\n' "$SHIP_DOMAIN" "$address"
+case "${SHIP_DNS:-auto}" in
+  manual)
+    printf 'manual dns: create *.%s as DNS-only CNAME/A record to %s\n' "$SHIP_DOMAIN" "$address"
+    ;;
+  auto | cloudflare)
+    if ./publish-cloudflare-dns.sh "$address" 2>"$dns_error"; then
+      printf 'ok: *.%s points to %s via Cloudflare DNS-only record\n' "$SHIP_DOMAIN" "$address"
+    elif [ "${SHIP_DNS:-auto}" = "cloudflare" ]; then
+      cat "$dns_error" >&2
+      exit 1
+    else
+      printf 'cloudflare dns skipped: %s\n' "$(sed -n '1p' "$dns_error")"
+      printf 'manual dns: create *.%s as DNS-only CNAME/A record to %s\n' "$SHIP_DOMAIN" "$address"
+    fi
+    ;;
+  *)
+    printf 'SHIP_DNS must be auto, manual, or cloudflare\n' >&2
+    exit 2
+    ;;
+esac

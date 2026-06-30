@@ -1,14 +1,22 @@
 #!/bin/sh
 set -eu
 
-wrangler="${WRANGLER:-}"
-if [ -z "$wrangler" ] && command -v wrangler >/dev/null 2>&1; then
-  wrangler="$(command -v wrangler)"
-fi
-if [ -z "$wrangler" ]; then
-  printf 'wrangler not found. Set WRANGLER=/path/to/wrangler and retry.\n' >&2
-  exit 1
+if [ -n "${CLOUDFLARE_API_TOKEN:-${CF_API_TOKEN:-}}" ]; then
+  printf 'ok: Cloudflare API token is set\n'
+  exit 0
 fi
 
-exec "$wrangler" login \
-  --scopes "account:read user:read workers:write workers_scripts:write workers_routes:write zone:read"
+cat >&2 <<'EOF'
+Cloudflare automatic DNS needs an API token with Zone DNS Edit for the target zone.
+If CLOUDFLARE_ZONE_ID is not set, the token also needs Zone Read so Ship can
+look up the zone id from SHIP_DOMAIN.
+
+Set it before strict Cloudflare mode:
+
+  export CLOUDFLARE_API_TOKEN=<token-with-zone-dns-edit>
+  export CLOUDFLARE_ZONE_ID=<optional-zone-id>
+  SHIP_DNS=cloudflare ./deploy-domain.sh
+
+Without a token, keep SHIP_DNS=auto or SHIP_DNS=manual and create the printed wildcard DNS record at your DNS provider.
+EOF
+exit 1

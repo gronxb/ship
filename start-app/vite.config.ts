@@ -4,9 +4,13 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import viteReact from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 
-const dashboardHosts = [
-  process.env.SHIP_DASHBOARD_HOST ?? "k8s.gron-studio.com",
+export const dashboardAllowedHosts = () => [
+  process.env.SHIP_DASHBOARD_HOST ??
+    (process.env.SHIP_DOMAIN ? `k8s.${process.env.SHIP_DOMAIN}` : undefined) ??
+    "k8s.gron-studio.com",
 ]
+
+const dashboardHosts = dashboardAllowedHosts()
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },

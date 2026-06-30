@@ -6,7 +6,7 @@ container logs.
 
 ```sh
 pnpm install
-pnpm dev --host 0.0.0.0 --port 9292
+pnpm dev --host 0.0.0.0 --port 3000
 ```
 
 The API reads the same Ship config as the CLI:
@@ -15,8 +15,13 @@ The API reads the same Ship config as the CLI:
 ~/.config/ship/config.env
 ```
 
-Deploy the dashboard route from `../deploy-system`, then open
-`https://k8s.mydomain.com` from your tailnet.
+Deploy it as the `k8s` service, then open `https://k8s.mydomain.com` from your
+tailnet:
+
+```sh
+cd ../deploy-system
+./deploy-dashboard.sh
+```
 
 ## Verification
 

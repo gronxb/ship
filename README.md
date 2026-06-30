@@ -9,16 +9,16 @@ The project has three parts:
 
 - `cmd/ship`: CLI that builds an image, applies Kubernetes resources, and records
   deployment state.
-- `deploy-system`: Gateway, proxy, dashboard route, and DNS helper scripts.
+- `deploy-system`: Gateway, dashboard bootstrap, and DNS helper scripts.
 - `start-app`: read-only dashboard for deployed containers, network requests,
   terminal commands, manifests, and container logs.
 
 ## Status
 
-Ship is production-oriented but intentionally small. It assumes you already own
-the cluster and DNS boundary. The default exposure mode is tailnet-only through
-the Tailscale Kubernetes Operator; public internet exposure is opt-in and should
-only be enabled on clusters with a real public LoadBalancer.
+Ship is production-oriented but intentionally small. The default exposure mode is
+tailnet-only through the Tailscale Kubernetes Operator. Cloudflare is optional:
+use it for automatic DNS when your zone is there, or keep `SHIP_DNS=manual` and
+create the wildcard DNS record at any provider.
 
 ## Requirements
 
@@ -30,33 +30,39 @@ only be enabled on clusters with a real public LoadBalancer.
 - Envoy Gateway
 - Tailscale Kubernetes Operator for the default private Gateway
 - cert-manager and a wildcard certificate issuer
-- Wrangler login when using the Cloudflare DNS helper
+- `CLOUDFLARE_API_TOKEN` with Zone DNS Edit only when forcing Cloudflare DNS.
+  If `CLOUDFLARE_ZONE_ID` is not set, the token also needs Zone Read so Ship can
+  look up the zone.
 - pnpm 10 or newer for dashboard development
 
 ## Quick Start
 
-Install the CLI:
+### For humans
+
+Install Ship, deploy the Gateway, deploy the `k8s.<domain>` dashboard, and leave
+the CLI ready:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=mydomain.com sh
+curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=mydomain.com SHIP_ONBOARD=1 sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Review the generated config:
+If your DNS zone is not in Cloudflare, keep the same command. Ship prints the
+manual wildcard record to create:
 
 ```sh
-$EDITOR ~/.config/ship/config.env
+manual dns: create *.mydomain.com as DNS-only CNAME/A record to <gateway-address>
 ```
 
-Deploy the Gateway once:
+Then verify:
 
 ```sh
-git clone https://github.com/gronxb/ship.git
-cd ship/deploy-system
-./deploy-domain.sh
+ship --help
+kubectl rollout status deployment/k8s -n ship-services --timeout=180s
+open https://k8s.mydomain.com
 ```
 
-Deploy any project that contains a `Dockerfile`:
+Deploy any Dockerfile project after onboarding:
 
 ```sh
 cd /path/to/app
@@ -65,6 +71,19 @@ ship --service demo
 
 Ship creates a `Deployment`, `Service`, and `HTTPRoute` for
 `https://demo.mydomain.com`.
+
+### For agents
+
+Use this prompt with an LLM/coding agent that has terminal access:
+
+```text
+Set up Ship for my Kubernetes context.
+Run:
+curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=<my-domain> SHIP_ONBOARD=1 sh
+Then export PATH="$HOME/.local/bin:$PATH", verify ship --help, verify deployment/k8s is rolled out, and open or curl https://k8s.<my-domain>.
+If the installer prints "manual dns", pause and tell me the exact wildcard DNS record to create.
+Do not use browser-based deployment; deploy the dashboard with ship.
+```
 
 ## Configuration
 
@@ -77,8 +96,6 @@ SHIP_NAMESPACE=ship-services
 SHIP_GATEWAY_NAMESPACE=ship-system
 SHIP_GATEWAY_NAME=ship-tailscale
 SHIP_INTERNET_GATEWAY_NAME=ship-internet
-SHIP_DASHBOARD_HOST=k8s.mydomain.com
-SHIP_DASHBOARD_PORT=9292
 SHIP_IMAGE_PREFIX=ship
 KIND_CLUSTER=ship
 REGISTRY=
@@ -98,18 +115,24 @@ ship --service demo --dry-run --json
 
 The dashboard is intentionally read-only. It shows deployed service cards,
 network request traces, terminal commands, rendered manifests, and recent
-container logs without deploying new workloads from the browser.
+container logs without deploying new workloads from the browser. Onboarding
+deploys it as the normal Ship service `k8s`, so `https://k8s.mydomain.com` is
+the first verification target.
 
-Run it locally:
+Redeploy it manually:
+
+```sh
+cd deploy-system
+./deploy-dashboard.sh
+```
+
+Run it locally only for dashboard development:
 
 ```sh
 cd start-app
 pnpm install
-pnpm dev --host 0.0.0.0 --port 9292
+pnpm dev --host 0.0.0.0 --port 3000
 ```
-
-After `deploy-system` is applied, open `https://k8s.mydomain.com` from your
-tailnet.
 
 ## Private And Public Exposure
 
@@ -121,13 +144,29 @@ Tailscale mode is the default:
 - `*.mydomain.com` resolves to the Tailscale Gateway address
 - Dockerfile projects do not need host port mapping
 
-The deploy script publishes a DNS-only Cloudflare wildcard record when Wrangler
-is logged in:
+`deploy-domain.sh` tries the Cloudflare DNS helper in `SHIP_DNS=auto` mode. If
+Cloudflare is not configured or no DNS token is present, it exits successfully
+and prints the manual wildcard record. Force manual mode:
 
 ```sh
 cd deploy-system
-./cloudflare-login.sh
+SHIP_DNS=manual ./deploy-domain.sh
+```
+
+Force Cloudflare mode:
+
+```sh
+cd deploy-system
+export CLOUDFLARE_API_TOKEN=<token-with-zone-dns-edit>
+export CLOUDFLARE_ZONE_ID=<optional-zone-id>
+SHIP_DNS=cloudflare ./deploy-domain.sh
+```
+
+Deploy the dashboard after the Gateway:
+
+```sh
 ./deploy-domain.sh
+./deploy-dashboard.sh
 ```
 
 ### Internet Mode
@@ -171,7 +210,7 @@ dashboard container configuration.
 ```text
 cmd/ship/          CLI entrypoint
 internal/deploy/   deployment planner and Kubernetes manifest renderer
-deploy-system/     Gateway, proxy, DNS, and validation scripts
+deploy-system/     Gateway, dashboard bootstrap, DNS, and validation scripts
 start-app/         read-only dashboard
 scripts/           repository maintenance checks
 ```
