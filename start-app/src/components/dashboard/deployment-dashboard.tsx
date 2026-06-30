@@ -16,10 +16,16 @@ import { LogPanel } from "./log-panel"
 import type { Deployment, DeploymentsResponse } from "./types"
 import { DeploymentsResponse as DeploymentsResponseSchema } from "./types"
 
-export function DeploymentDashboard() {
-  const [deployments, setDeployments] = useState<readonly Deployment[]>([])
+export function DeploymentDashboard({
+  initialDeployments,
+}: {
+  readonly initialDeployments?: readonly Deployment[]
+}) {
+  const hasInitialDeployments = initialDeployments !== undefined
+  const [deployments, setDeployments] =
+    useState<readonly Deployment[]>(initialDeployments ?? [])
   const [requestLog, setRequestLog] = useState<readonly string[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!hasInitialDeployments)
   const [error, setError] = useState("")
 
   async function loadDeployments(): Promise<void> {
@@ -48,6 +54,9 @@ export function DeploymentDashboard() {
   }
 
   useEffect(() => {
+    if (hasInitialDeployments) {
+      return
+    }
     refreshDeployments().catch((caught: unknown) => {
       if (caught instanceof Error) {
         setError(caught.message)
@@ -56,7 +65,7 @@ export function DeploymentDashboard() {
       }
       throw caught
     })
-  }, [])
+  }, [hasInitialDeployments])
 
   const summary = useMemo(() => deploymentSummary(deployments), [deployments])
 

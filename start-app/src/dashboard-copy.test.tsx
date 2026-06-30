@@ -15,6 +15,79 @@ afterEach(() => {
 })
 
 describe("dashboard surface", () => {
+  it("renders initial deployments before the browser refresh completes", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(JSON.stringify({ deployments: [] }), {
+          headers: { "Content-Type": "application/json" },
+        })
+      })
+    )
+
+    render(
+      <DeploymentDashboard
+        initialDeployments={[
+          {
+            serviceName: "k8s",
+            host: "k8s.gron-studio.com",
+            image: "cluster-managed",
+            namespace: "gron-services",
+            port: 0,
+            exposure: "tailscale",
+            tailscaleOnly: true,
+            dryRun: false,
+            commands: [],
+            manifest: "",
+            containerLogs: "listening",
+          },
+        ]}
+      />
+    )
+
+    expect(screen.getByText("k8s")).toBeDefined()
+    expect(summaryCardText("Services")).toBe("Services1")
+    expect(summaryCardText("Tailscale-only")).toBe("Tailscale-only1")
+    expect(summaryCardText("Internet routes")).toBe("Internet routes0")
+    expect(screen.queryByText("No deployed containers found")).toBeNull()
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
+  it("treats an empty server-loaded deployment list as final initial data", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        return new Response(
+          JSON.stringify({
+            deployments: [
+              {
+                serviceName: "late-client-fetch",
+                host: "late.example.com",
+                image: "ship/late:latest",
+                namespace: "ship-services",
+                port: 3000,
+                exposure: "tailscale",
+                tailscaleOnly: true,
+                dryRun: false,
+                commands: [],
+                manifest: "",
+                containerLogs: "",
+              },
+            ],
+          }),
+          { headers: { "Content-Type": "application/json" } }
+        )
+      })
+    )
+
+    render(<DeploymentDashboard initialDeployments={[]} />)
+
+    expect(summaryCardText("Services")).toBe("Services0")
+    expect(screen.getByText("No deployed containers found")).toBeDefined()
+    expect(screen.queryByText("late-client-fetch")).toBeNull()
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled()
+  })
+
   it("renders deployed containers as read-only cards with logs", async () => {
     vi.stubGlobal(
       "fetch",
@@ -74,4 +147,13 @@ async function renderDashboardAt(path: string): Promise<void> {
 
 function renderedTextIncludes(text: string): boolean {
   return document.body.textContent.includes(text)
+}
+
+function summaryCardText(label: string): string {
+  const description = screen
+    .getAllByText(label)
+    .find((element) => element.getAttribute("data-slot") === "card-description")
+  const card = description?.closest("[data-slot='card']")
+  expect(card).not.toBeNull()
+  return card?.textContent ?? ""
 }
