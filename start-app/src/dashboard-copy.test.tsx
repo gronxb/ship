@@ -32,9 +32,9 @@ describe("dashboard surface", () => {
         initialDeployments={[
           {
             serviceName: "k8s",
-            host: "k8s.gron-studio.com",
+            host: "k8s.example.com",
             image: "cluster-managed",
-            namespace: "gron-services",
+            namespace: "ship-services",
             port: 0,
             exposure: "tailscale",
             tailscaleOnly: true,
@@ -151,7 +151,7 @@ describe("dashboard surface", () => {
       serviceName: "demo",
       host: "demo.example.com",
       image: "ship/demo:latest",
-      namespace: "gron-services",
+      namespace: "ship-services",
       port: 3000,
       exposure: "tailscale" as const,
       tailscaleOnly: true,
@@ -203,7 +203,7 @@ describe("dashboard surface", () => {
         method: "PATCH",
         body: JSON.stringify({
           serviceName: "demo",
-          namespace: "gron-services",
+          namespace: "ship-services",
           exposure: "internet",
         }),
       })

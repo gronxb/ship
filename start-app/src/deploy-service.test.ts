@@ -27,7 +27,7 @@ const DeploymentResult = z.object({
 
 describe("ship dry-run", () => {
   it("returns a Tailscale-only host route plan when Dockerfile exists", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "gron-deploy-"))
+    const dir = await mkdtemp(join(tmpdir(), "ship-deploy-"))
     const dockerfile = join(dir, "Dockerfile")
     await writeFile(
       dockerfile,
@@ -65,7 +65,7 @@ describe("ship dry-run", () => {
   })
 
   it("returns an Internet Gateway route plan when requested", async () => {
-    const dir = await mkdtemp(join(tmpdir(), "gron-deploy-"))
+    const dir = await mkdtemp(join(tmpdir(), "ship-deploy-"))
     await writeFile(join(dir, "Dockerfile"), "FROM busybox\n")
 
     try {

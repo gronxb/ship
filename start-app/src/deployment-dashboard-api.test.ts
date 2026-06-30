@@ -44,7 +44,7 @@ describe("dashboard deployment API", () => {
     const mockedExecFile = vi.mocked(execFileAsync)
     vi.mocked(readMergedDeployments).mockResolvedValueOnce([
       deploymentFixture({
-        namespace: "gron-services",
+        namespace: "ship-services",
         serviceName: "demo",
         tailscaleOnly: true,
       }),
@@ -60,7 +60,7 @@ describe("dashboard deployment API", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceName: "demo",
-          namespace: "gron-services",
+          namespace: "ship-services",
           exposure: "internet",
         }),
       })
@@ -82,7 +82,7 @@ describe("dashboard deployment API", () => {
       "httproute",
       "demo",
       "-n",
-      "gron-services",
+      "ship-services",
       "--type=merge",
       "-p",
       expect.stringContaining('"ship.local/exposure":"internet"'),
@@ -92,7 +92,7 @@ describe("dashboard deployment API", () => {
       "httproute",
       "demo",
       "-n",
-      "gron-services",
+      "ship-services",
       "--type=merge",
       "-p",
       expect.stringContaining('"name":"ship-internet"'),
@@ -129,7 +129,7 @@ describe("dashboard deployment API", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceName: "demo",
-          namespace: "gron-services",
+          namespace: "ship-services",
           exposure: "internet",
         }),
       })

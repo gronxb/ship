@@ -13,6 +13,8 @@ import (
 	"github.com/gronxb/ship/internal/deploy"
 )
 
+const version = "dev"
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -28,6 +30,9 @@ func run(ctx context.Context, args []string) error {
 		switch args[0] {
 		case "-h", "--help", "help":
 			fmt.Println("usage: ship --service <name> [--cwd DIR] [--port PORT] [--exposure tailscale|internet] [--dry-run] [--json]")
+			return nil
+		case "-v", "--version", "version":
+			fmt.Println("ship " + version)
 			return nil
 		}
 	}

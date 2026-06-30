@@ -7,7 +7,7 @@ import tailwindcss from "@tailwindcss/vite"
 export const dashboardAllowedHosts = () => [
   process.env.SHIP_DASHBOARD_HOST ??
     (process.env.SHIP_DOMAIN ? `k8s.${process.env.SHIP_DOMAIN}` : undefined) ??
-    "k8s.gron-studio.com",
+    "k8s.example.com",
 ]
 
 const dashboardHosts = dashboardAllowedHosts()

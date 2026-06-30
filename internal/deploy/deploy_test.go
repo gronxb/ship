@@ -121,14 +121,14 @@ func TestPlanAllowsK8sDashboardServiceName(t *testing.T) {
 	result, err := Plan(Options{
 		ServiceName: "k8s",
 		CWD:         dir,
-		Domain:      "gron-studio.com",
+		Domain:      "example.com",
 		ImageTag:    "test",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if result.Host != "k8s.gron-studio.com" {
+	if result.Host != "k8s.example.com" {
 		t.Fatalf("unexpected host %q", result.Host)
 	}
 }
