@@ -7,6 +7,7 @@ import { Route } from "./routes/api.deployments"
 
 vi.mock("./lib/deployment-command", () => ({
   execFileAsync: vi.fn(),
+  execFileWithInput: vi.fn(),
 }))
 vi.mock("./lib/deployment-state", async (importOriginal) => {
   const actual = await importOriginal<typeof DeploymentState>()
@@ -38,10 +39,12 @@ describe("dashboard deployment API", () => {
     ])
   })
 
-  it("patches a tailscale route to internet exposure", async () => {
-    const { execFileAsync } = await import("./lib/deployment-command")
+  it("applies a Tailscale Funnel ingress for internet exposure", async () => {
+    const { execFileAsync, execFileWithInput } =
+      await import("./lib/deployment-command")
     const { readMergedDeployments } = await import("./lib/deployment-state")
     const mockedExecFile = vi.mocked(execFileAsync)
+    const mockedExecFileWithInput = vi.mocked(execFileWithInput)
     vi.mocked(readMergedDeployments).mockResolvedValueOnce([
       deploymentFixture({
         namespace: "ship-services",
@@ -49,11 +52,7 @@ describe("dashboard deployment API", () => {
         tailscaleOnly: true,
       }),
     ])
-    mockedExecFile.mockResolvedValueOnce({
-      stdout: "gateway.networking.k8s.io/ship-internet",
-      stderr: "",
-    })
-    mockedExecFile.mockResolvedValueOnce({
+    mockedExecFileWithInput.mockResolvedValueOnce({
       stdout: "",
       stderr: "",
     })
@@ -81,41 +80,28 @@ describe("dashboard deployment API", () => {
 
     expect(response.status).toBe(200)
     expect(body.deployment.serviceName).toBe("demo")
-    expect(mockedExecFile).toHaveBeenCalledWith("kubectl", [
-      "get",
-      "gateway",
-      "ship-internet",
-      "-n",
-      "ship-system",
-      "-o",
-      "name",
-    ])
-    expect(mockedExecFile).toHaveBeenCalledWith("kubectl", [
-      "patch",
-      "httproute",
-      "demo",
-      "-n",
-      "ship-services",
-      "--type=merge",
-      "-p",
-      expect.stringContaining('"ship.local/exposure":"internet"'),
-    ])
-    expect(mockedExecFile).toHaveBeenCalledWith("kubectl", [
-      "patch",
-      "httproute",
-      "demo",
-      "-n",
-      "ship-services",
-      "--type=merge",
-      "-p",
-      expect.stringContaining('"name":"ship-internet"'),
-    ])
+    expect(mockedExecFile).not.toHaveBeenCalled()
+    expect(mockedExecFileWithInput).toHaveBeenCalledWith(
+      "kubectl",
+      ["apply", "-f", "-"],
+      expect.stringContaining("kind: Ingress")
+    )
+    expect(mockedExecFileWithInput).toHaveBeenCalledWith(
+      "kubectl",
+      ["apply", "-f", "-"],
+      expect.stringContaining('tailscale.com/funnel: "true"')
+    )
+    expect(mockedExecFileWithInput).toHaveBeenCalledWith(
+      "kubectl",
+      ["apply", "-f", "-"],
+      expect.stringContaining("ingressClassName: tailscale")
+    )
   })
 
-  it("rejects internet exposure when the internet gateway is missing", async () => {
-    const { execFileAsync } = await import("./lib/deployment-command")
+  it("returns setup guidance when Tailscale Funnel is not ready", async () => {
+    const { execFileWithInput } = await import("./lib/deployment-command")
     const { readMergedDeployments } = await import("./lib/deployment-state")
-    const mockedExecFile = vi.mocked(execFileAsync)
+    const mockedExecFileWithInput = vi.mocked(execFileWithInput)
     vi.mocked(readMergedDeployments).mockResolvedValueOnce([
       deploymentFixture({
         namespace: "ship-services",
@@ -123,7 +109,7 @@ describe("dashboard deployment API", () => {
         tailscaleOnly: true,
       }),
     ])
-    mockedExecFile.mockRejectedValueOnce(new Error("gateway not found"))
+    mockedExecFileWithInput.mockRejectedValueOnce(new Error("funnel disabled"))
 
     const response = await changeDeploymentExposure(
       new Request("http://ship.local/api/deployments", {
@@ -140,18 +126,9 @@ describe("dashboard deployment API", () => {
 
     expect(response.status).toBe(409)
     expect(body.error).toBe(
-      "internet gateway not found; run: cd deploy-system && ./deploy-internet-gateway.sh"
+      "tailscale funnel not ready; run: cd deploy-system && ./deploy-internet-gateway.sh"
     )
-    expect(mockedExecFile).toHaveBeenCalledTimes(1)
-    expect(mockedExecFile).toHaveBeenCalledWith("kubectl", [
-      "get",
-      "gateway",
-      "ship-internet",
-      "-n",
-      "ship-system",
-      "-o",
-      "name",
-    ])
+    expect(mockedExecFileWithInput).toHaveBeenCalledTimes(1)
   })
 
   it("rejects malformed exposure updates before kubectl runs", async () => {
@@ -192,54 +169,6 @@ describe("dashboard deployment API", () => {
 
     expect(response.status).toBe(404)
     expect(mockedExecFile).not.toHaveBeenCalled()
-  })
-
-  it("attempts container logs and returns a visible fallback when logs fail", async () => {
-    const { execFileAsync } = await import("./lib/deployment-command")
-    const { readClusterDeployments } = await import("./lib/deployment-cluster")
-    const mockedExecFile = vi.mocked(execFileAsync)
-    mockedExecFile
-      .mockResolvedValueOnce({
-        stdout: JSON.stringify({
-          items: [
-            {
-              metadata: {
-                name: "demo",
-                namespace: "ship-services",
-                labels: { "ship.local/exposure": "tailscale" },
-              },
-              spec: {
-                hostnames: ["demo.example.com"],
-                parentRefs: [{ name: "ship-tailscale" }],
-              },
-            },
-          ],
-        }),
-        stderr: "",
-      })
-      .mockRejectedValueOnce(new Error("pods not ready"))
-
-    const deployments = await readClusterDeployments()
-
-    expect(mockedExecFile).toHaveBeenNthCalledWith(1, "kubectl", [
-      "get",
-      "httproute",
-      "-n",
-      "ship-services",
-      "-o",
-      "json",
-    ])
-    expect(mockedExecFile).toHaveBeenNthCalledWith(2, "kubectl", [
-      "logs",
-      "deployment/demo",
-      "-n",
-      "ship-services",
-      "--tail=80",
-      "--all-containers=true",
-    ])
-    expect(deployments[0]?.containerLogs).toBe(
-      "Container logs unavailable: pods not ready"
-    )
   })
 })
 

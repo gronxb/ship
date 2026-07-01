@@ -196,7 +196,7 @@ Do not use browser-based deployment. The dashboard is deployed by the installer 
 - Kubernetes Gateway API
 - Envoy Gateway
 - Tailscale Kubernetes Operator for the default private Gateway
-- cert-manager and a wildcard certificate issuer for public internet exposure
+- cert-manager and a wildcard certificate issuer for custom-domain Gateway TLS
 
 The installer expects the current `kubectl` context to be the cluster you want
 Ship to use. For local kind, use a cluster named `ship`, which creates the
@@ -280,16 +280,16 @@ ship --service demo --dry-run --json
 
 ## Public Internet Exposure
 
-Ship defaults to Tailscale-only routing. To prepare an internet Gateway:
+Ship defaults to Tailscale-only routing. To prepare Tailscale Funnel exposure:
 
 ```sh
 cd deploy-system
 ./deploy-internet-gateway.sh
 ```
 
-The script applies what Ship can create and prints the remaining manual actions:
-public LoadBalancer address, DNS records, and wildcard TLS setup. Then deploy a
-service through the internet Gateway:
+The script verifies the Tailscale IngressClass and prints the remaining manual
+tailnet policy action for Funnel. Then deploy a service with a public Funnel
+Ingress:
 
 ```sh
 ship --service demo --exposure internet
@@ -302,7 +302,7 @@ ship --service demo --exposure internet
 | `ship: command not found` | Run `export PATH="$HOME/.local/bin:$PATH"` or add that line to your shell profile. |
 | Installer prints `usage:` | Set `SHIP_DOMAIN=mydomain.com` or pass the domain with `sh -s -- mydomain.com`. |
 | Dashboard does not load | Confirm the printed wildcard DNS record exists and points to the Gateway address. |
-| Gateway has no address | Check the Tailscale Kubernetes Operator and Envoy Gateway installation. |
+| Gateway has no address | Check the Tailscale Kubernetes Operator and Envoy Gateway installation for private routing; public exposure uses Tailscale Funnel Ingress. |
 | Current context is `kind-e2e` | Create/select the local Ship cluster with `kind create cluster --name ship` and `kubectl config use-context kind-ship`; keep `e2e` for service names only. |
 | Non-kind cluster cannot pull the image | Set `REGISTRY` or `SHIP_IMAGE_PREFIX` so the cluster can pull the built image. |
 | Want to preview manifests | Run `ship --service demo --dry-run --json` before applying. |

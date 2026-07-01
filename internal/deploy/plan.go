@@ -33,7 +33,6 @@ func Plan(opts Options) (Result, error) {
 	if opts.Port == 0 {
 		opts.Port = exposedPort(dockerfile)
 	}
-	opts.GatewayName = gatewayName(opts)
 	envFilePath := ""
 	if opts.EnvFile != "" {
 		envFilePath, err = filepath.Abs(opts.EnvFile)
@@ -170,11 +169,4 @@ func loadOrPushCommand(opts Options, image string) string {
 		return "docker push " + image
 	}
 	return fmt.Sprintf("kind load docker-image --name %s %s", opts.KindCluster, image)
-}
-
-func gatewayName(opts Options) string {
-	if opts.Exposure == "internet" {
-		return opts.InternetGateway
-	}
-	return opts.GatewayName
 }

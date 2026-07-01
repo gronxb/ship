@@ -51,7 +51,7 @@ The command prints:
 manual dns: create *.$SHIP_DOMAIN as DNS-only CNAME/A record to <gateway-address>
 ```
 
-## Internet Gateway
+## Internet Exposure
 
 Run one command before using the dashboard's "Expose to internet" action or
 `ship --exposure internet`:
@@ -60,6 +60,6 @@ Run one command before using the dashboard's "Expose to internet" action or
 ./deploy-internet-gateway.sh
 ```
 
-The script applies everything Ship can create and prints the remaining manual
-actions. Those are environment-owned: public LoadBalancer address, host-specific
-DNS records, and the wildcard TLS Secret/cert-manager DNS issuer.
+The script verifies Tailscale Ingress support and prints the remaining manual
+tailnet policy action. Public exposure is created as a Tailscale Funnel Ingress,
+so local kind clusters do not need a public LoadBalancer.

@@ -124,7 +124,7 @@ ship --service demo --dry-run --json
 
 The dashboard shows deployed service cards, network request traces, terminal
 commands, rendered manifests, recent container logs, and a control for promoting
-a Tailscale-only route to the internet Gateway. It still does not deploy new
+a Tailscale-only route through Tailscale Funnel. It still does not deploy new
 workloads from the browser. Onboarding deploys it as the normal Ship service
 `k8s`, so `https://k8s.mydomain.com` is the first verification target.
 
@@ -181,11 +181,9 @@ Internet exposure setup is one command for everything Ship can automate:
 cd deploy-system && ./deploy-internet-gateway.sh
 ```
 
-The script creates the internet Gateway resources and prints only the remaining
-manual actions: public LoadBalancer address, DNS records, and wildcard TLS
-Secret/cert-manager setup. Local kind clusters usually create the Gateway but
-do not provide a real public LoadBalancer address; use Tailscale mode there, or
-run this on a cluster with public LoadBalancer support.
+The script verifies the Tailscale IngressClass and prints the remaining manual
+tailnet policy action for Funnel. Ship's public route uses a Tailscale Funnel
+Ingress, so local kind clusters do not need a public LoadBalancer.
 
 Then opt a service into public routing:
 

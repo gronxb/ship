@@ -4,30 +4,32 @@ set -eu
 cd "$(dirname "$0")"
 . ./ship-env.sh
 
-secret="wildcard-$(printf '%s' "$SHIP_DOMAIN" | tr . -)-tls"
-
-./render-internet-gateway.sh | kubectl apply -f -
-
-printf '\n'
-kubectl get gatewayclass internet
-kubectl get gateway -n "$SHIP_GATEWAY_NAMESPACE" "$SHIP_INTERNET_GATEWAY_NAME" -o wide
-
-address="$(./gateway-address.sh "$SHIP_GATEWAY_NAMESPACE" "$SHIP_INTERNET_GATEWAY_NAME" 2>/dev/null || true)"
-if [ -z "$address" ]; then
+if ! kubectl get ingressclass tailscale >/dev/null 2>&1; then
   cat <<EOF
-
-manual action: provide a public LoadBalancer address for Gateway $SHIP_GATEWAY_NAMESPACE/$SHIP_INTERNET_GATEWAY_NAME.
-local kind clusters usually cannot do this; use Tailscale mode there or run this on a cloud cluster.
+missing: Tailscale IngressClass is not installed.
+run: ./bootstrap-kind.sh
 EOF
-else
-  cat <<EOF
-
-manual action: create host-specific DNS records for public services under *.$SHIP_DOMAIN pointing to $address.
-EOF
+  exit 1
 fi
 
-if ! kubectl get secret "$secret" -n "$SHIP_GATEWAY_NAMESPACE" >/dev/null 2>&1; then
-  cat <<EOF
-manual action: create TLS Secret $SHIP_GATEWAY_NAMESPACE/$secret or configure cert-manager ClusterIssuer letsencrypt-dns01 to create it.
+printf 'ok: Tailscale IngressClass is installed\n\n'
+cat <<EOF
+manual action: enable Tailscale Funnel for the Kubernetes operator tag in the tailnet policy:
+
+{
+  "nodeAttrs": [
+    {
+      "target": ["tag:k8s"],
+      "attr": ["funnel"]
+    }
+  ]
+}
+
+Then use the dashboard's "Expose to internet" button or:
+
+ship --service <service> --exposure internet
+
+The public URL appears in:
+
+kubectl get ingress -n $SHIP_NAMESPACE
 EOF
-fi

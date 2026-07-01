@@ -79,7 +79,10 @@ func TestPlanBuildsInternetRoute(t *testing.T) {
 	for _, want := range []string{
 		`ship.local/exposure: "internet"`,
 		`ship.local/tailscale-only: "false"`,
-		"name: ship-internet",
+		"name: ship-tailscale",
+		"kind: Ingress",
+		`tailscale.com/funnel: "true"`,
+		"ingressClassName: tailscale",
 	} {
 		if !strings.Contains(result.Manifest, want) {
 			t.Fatalf("manifest missing %q:\n%s", want, result.Manifest)

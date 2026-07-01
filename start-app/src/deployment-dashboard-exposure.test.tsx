@@ -54,7 +54,7 @@ describe("dashboard exposure errors", () => {
     )
   })
 
-  it("shows the internet Gateway setup command when exposure is not ready", async () => {
+  it("shows the Tailscale Funnel setup command when exposure is not ready", async () => {
     const initialDeployment = deployment()
     vi.stubGlobal(
       "fetch",
@@ -63,7 +63,7 @@ describe("dashboard exposure errors", () => {
           return new Response(
             JSON.stringify({
               error:
-                "internet gateway not found; run: cd deploy-system && ./deploy-internet-gateway.sh",
+                "tailscale funnel not ready; run: cd deploy-system && ./deploy-internet-gateway.sh",
             }),
             {
               status: 409,
@@ -86,7 +86,7 @@ describe("dashboard exposure errors", () => {
 
     expect(
       await screen.findByText(
-        "internet gateway not found; run: cd deploy-system && ./deploy-internet-gateway.sh"
+        "tailscale funnel not ready; run: cd deploy-system && ./deploy-internet-gateway.sh"
       )
     ).toBeDefined()
     expect(document.body.textContent.includes('{"error"')).toBe(false)

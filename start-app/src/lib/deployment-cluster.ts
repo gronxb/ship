@@ -4,12 +4,30 @@ import {
   serviceNamespace,
 } from "./deployment-config"
 import { execFileAsync } from "./deployment-command"
-import { HttpRouteList } from "./deployment-schema"
-import type { DeploymentResult, Exposure, HttpRoute } from "./deployment-schema"
+import { HttpRouteList, IngressList } from "./deployment-schema"
+import type {
+  DeploymentResult,
+  Exposure,
+  HttpRoute,
+  Ingress,
+} from "./deployment-schema"
 
 export async function readClusterDeployments(): Promise<
   readonly DeploymentResult[]
 > {
+  const routes = await readHttpRoutes()
+  const ingresses = await readInternetIngresses()
+  const ingressByService = new Map(
+    ingresses.map((item) => [ingressServiceName(item), item])
+  )
+  return Promise.all(
+    routes.map((item) =>
+      clusterDeployment(item, ingressByService.get(item.metadata.name))
+    )
+  )
+}
+
+async function readHttpRoutes(): Promise<readonly HttpRoute[]> {
   try {
     const output = await execFileAsync("kubectl", [
       "get",
@@ -20,7 +38,7 @@ export async function readClusterDeployments(): Promise<
       "json",
     ])
     const routes = HttpRouteList.parse(JSON.parse(output.stdout))
-    return Promise.all(routes.items.map(clusterDeployment))
+    return routes.items
   } catch (error) {
     if (error instanceof SyntaxError) {
       return []
@@ -32,12 +50,44 @@ export async function readClusterDeployments(): Promise<
   }
 }
 
-async function clusterDeployment(item: HttpRoute): Promise<DeploymentResult> {
+async function readInternetIngresses(): Promise<readonly Ingress[]> {
+  try {
+    const output = await execFileAsync("kubectl", [
+      "get",
+      "ingress",
+      "-n",
+      serviceNamespace,
+      "-l",
+      "ship.local/exposure=internet",
+      "-o",
+      "json",
+    ])
+    const ingresses = IngressList.parse(JSON.parse(output.stdout))
+    return ingresses.items
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return []
+    }
+    if (error instanceof Error && "stderr" in error) {
+      return []
+    }
+    throw error
+  }
+}
+
+async function clusterDeployment(
+  item: HttpRoute,
+  internetIngress: Ingress | undefined
+): Promise<DeploymentResult> {
   const serviceName = item.metadata.name
-  const exposure = exposureForRoute(item)
+  const exposure = internetIngress ? "internet" : exposureForRoute(item)
+  const routeHost = item.spec.hostnames.at(0)
   return {
     serviceName,
-    host: item.spec.hostnames[0] ?? `${serviceName}.${domain}`,
+    host:
+      ingressAddress(internetIngress) ??
+      routeHost ??
+      `${serviceName}.${domain}`,
     image: "cluster-managed",
     namespace: item.metadata.namespace,
     dockerfilePath: "",
@@ -48,8 +98,20 @@ async function clusterDeployment(item: HttpRoute): Promise<DeploymentResult> {
     dryRun: false,
     commands: [],
     manifest: "",
-    containerLogs: await readContainerLogs(serviceName, item.metadata.namespace),
+    containerLogs: await readContainerLogs(
+      serviceName,
+      item.metadata.namespace
+    ),
   }
+}
+
+function ingressServiceName(item: Ingress): string {
+  return item.metadata.labels?.["app.kubernetes.io/name"] ?? item.metadata.name
+}
+
+function ingressAddress(item: Ingress | undefined): string | undefined {
+  const address = item?.status.loadBalancer.ingress[0]
+  return address?.hostname ?? address?.ip
 }
 
 function exposureForRoute(item: HttpRoute): Exposure {

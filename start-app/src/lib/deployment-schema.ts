@@ -42,6 +42,35 @@ export const HttpRouteList = z.object({
   ),
 })
 
+export const IngressList = z.object({
+  items: z.array(
+    z.object({
+      metadata: z.object({
+        name: z.string(),
+        namespace: z.string().default("ship-services"),
+        labels: z.record(z.string(), z.string()).optional(),
+      }),
+      status: z
+        .object({
+          loadBalancer: z
+            .object({
+              ingress: z
+                .array(
+                  z.object({
+                    hostname: z.string().optional(),
+                    ip: z.string().optional(),
+                  })
+                )
+                .default([]),
+            })
+            .default({ ingress: [] }),
+        })
+        .default({ loadBalancer: { ingress: [] } }),
+    })
+  ),
+})
+
 export type Exposure = z.infer<typeof Exposure>
 export type DeploymentResult = z.infer<typeof DeploymentResult>
 export type HttpRoute = z.infer<typeof HttpRouteList>["items"][number]
+export type Ingress = z.infer<typeof IngressList>["items"][number]

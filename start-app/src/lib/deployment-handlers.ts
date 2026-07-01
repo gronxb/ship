@@ -1,7 +1,6 @@
 import { z } from "zod"
 
-import { gatewayNamespace, internetGatewayName } from "./deployment-config"
-import { execFileAsync } from "./deployment-command"
+import { execFileWithInput } from "./deployment-command"
 import { readMergedDeployments } from "./deployment-state"
 
 const exposureUpdate = z.object({
@@ -13,7 +12,7 @@ const exposureUpdate = z.object({
   exposure: z.literal("internet"),
 })
 
-const internetGatewaySetupCommand =
+const tailscaleFunnelSetupCommand =
   "cd deploy-system && ./deploy-internet-gateway.sh"
 
 export async function listDeployments(): Promise<Response> {
@@ -63,54 +62,22 @@ export async function changeDeploymentExposure(
   }
 
   try {
-    await execFileAsync("kubectl", [
-      "get",
-      "gateway",
-      internetGatewayName,
-      "-n",
-      gatewayNamespace,
-      "-o",
-      "name",
-    ])
+    await execFileWithInput(
+      "kubectl",
+      ["apply", "-f", "-"],
+      funnelIngressManifest(serviceName, deployment.namespace)
+    )
   } catch (caught) {
     if (caught instanceof Error) {
       return Response.json(
         {
-          error: `internet gateway not found; run: ${internetGatewaySetupCommand}`,
+          error: `tailscale funnel not ready; run: ${tailscaleFunnelSetupCommand}`,
         },
         { status: 409 }
       )
     }
     throw caught
   }
-
-  await execFileAsync("kubectl", [
-    "patch",
-    "httproute",
-    serviceName,
-    "-n",
-    deployment.namespace,
-    "--type=merge",
-    "-p",
-    JSON.stringify({
-      metadata: {
-        labels: {
-          "ship.local/exposure": "internet",
-          "ship.local/tailscale-only": "false",
-        },
-      },
-      spec: {
-        parentRefs: [
-          {
-            group: "gateway.networking.k8s.io",
-            kind: "Gateway",
-            name: internetGatewayName,
-            namespace: gatewayNamespace,
-          },
-        ],
-      },
-    }),
-  ])
 
   return Response.json({
     deployment: {
@@ -119,4 +86,29 @@ export async function changeDeploymentExposure(
       tailscaleOnly: false,
     },
   })
+}
+
+function funnelIngressManifest(serviceName: string, namespace: string): string {
+  return `apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ${serviceName}
+  namespace: ${namespace}
+  labels:
+    app.kubernetes.io/name: ${serviceName}
+    ship.local/exposure: "internet"
+    ship.local/tailscale-only: "false"
+  annotations:
+    tailscale.com/funnel: "true"
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: ${serviceName}
+      port:
+        number: 80
+  tls:
+    - hosts:
+        - ${serviceName}
+`
 }

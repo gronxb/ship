@@ -102,5 +102,30 @@ spec:
           name: %s
           port: 80
 `, opts.Namespace, opts.Exposure, tailscaleOnlyLabel, opts.ServiceName, opts.Namespace, opts.ServiceName, opts.Exposure, tailscaleOnlyLabel, opts.ServiceName, opts.ServiceName, serviceAccountName, image, envFrom, opts.Port, opts.ServiceName, opts.Namespace, opts.ServiceName, opts.Exposure, tailscaleOnlyLabel, opts.ServiceName, opts.ServiceName, opts.Namespace, opts.ServiceName, opts.Exposure, tailscaleOnlyLabel, opts.GatewayName, opts.GatewayNamespace, host, opts.ServiceName)
+	if opts.Exposure == "internet" {
+		fmt.Fprintf(&b, `---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: %s
+  namespace: %s
+  labels:
+    app.kubernetes.io/name: %s
+    ship.local/exposure: "internet"
+    ship.local/tailscale-only: "false"
+  annotations:
+    tailscale.com/funnel: "true"
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: %s
+      port:
+        number: 80
+  tls:
+    - hosts:
+        - %s
+`, opts.ServiceName, opts.Namespace, opts.ServiceName, opts.ServiceName, opts.ServiceName)
+	}
 	return b.String()
 }

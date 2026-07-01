@@ -64,7 +64,7 @@ describe("ship dry-run", () => {
     }
   })
 
-  it("returns an Internet Gateway route plan when requested", async () => {
+  it("returns a Tailscale Funnel ingress plan when internet exposure is requested", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ship-deploy-"))
     await writeFile(join(dir, "Dockerfile"), "FROM busybox\n")
 
@@ -90,7 +90,9 @@ describe("ship dry-run", () => {
       expect(result.exposure).toBe("internet")
       expect(result.tailscaleOnly).toBe(false)
       expect(result.manifest).toContain('ship.local/exposure: "internet"')
-      expect(result.manifest).toContain("name: ship-internet")
+      expect(result.manifest).toContain("kind: Ingress")
+      expect(result.manifest).toContain('tailscale.com/funnel: "true"')
+      expect(result.manifest).toContain("ingressClassName: tailscale")
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
