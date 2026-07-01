@@ -12,6 +12,17 @@ if [ -z "$target" ]; then
   target="$(./gateway-address.sh)"
 fi
 
+if [ "${SHIP_DRY_RUN:-0}" = "1" ]; then
+  record_type="CNAME"
+  case "$target" in
+    *:*) record_type="AAAA" ;;
+    *[!0-9.]* | "") record_type="CNAME" ;;
+    *) record_type="A" ;;
+  esac
+  printf 'dry-run: %s %s %s proxied=false\n' "$record_name" "$record_type" "$target"
+  exit 0
+fi
+
 ruby -rjson -rnet/http -ruri -ripaddr -e '
   API = "https://api.cloudflare.com/client/v4"
   LOGIN = "./cloudflare-login.sh"

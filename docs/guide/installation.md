@@ -15,14 +15,22 @@ create, then deploys the dashboard at `https://k8s.<your-domain>`.
 
 Recommended one-liner:
 
-For local kind installs from a blank machine, bootstrap the Ship-named cluster
-first:
+For local kind installs with a Cloudflare-managed domain, fill the environment
+values and run one command:
 
 ```sh
-TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
+curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | \
+  CLOUDFLARE_API_TOKEN=<token> \
+  SHIP_DOMAIN=mydomain.com \
+  TS_OAUTH_CLIENT_ID=<client-id> \
+  TS_OAUTH_CLIENT_SECRET=<client-secret> \
+  SHIP_ONBOARD=1 \
+  sh
 ```
 
-Then run the installer:
+The default dashboard service is `k8s`; set `SHIP_DASHBOARD_SERVICE=ops` to use
+another name. Without Cloudflare, omit `CLOUDFLARE_API_TOKEN` and create the
+printed wildcard DNS record manually.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=mydomain.com SHIP_ONBOARD=1 sh
@@ -71,16 +79,15 @@ Use this prompt when handing setup to an agent:
 Install and verify Ship. If no Kubernetes cluster exists, create a local kind
 cluster named ship first.
 
-1. Ask me for the base domain if I did not provide one.
-2. Ask me for Tailscale Kubernetes Operator OAuth client id/secret if I did not provide them.
+1. Ask me for the Cloudflare-managed base domain if I did not provide one.
+2. Ask me for Cloudflare API token and Tailscale Kubernetes Operator OAuth client id/secret if I did not provide them.
 3. Check that go, docker, kubectl, kind, and helm are available for a local install.
-4. Run `TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh`.
-5. Run:
-   curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=<my-domain> SHIP_ONBOARD=1 sh
+4. Run:
+   curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | CLOUDFLARE_API_TOKEN=<token> SHIP_DOMAIN=<my-domain> TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> SHIP_ONBOARD=1 sh
 6. Export PATH="$HOME/.local/bin:$PATH".
 7. Verify ship --help.
 8. Verify kubectl rollout status deployment/k8s -n ship-services --timeout=180s.
-9. If the installer prints "manual dns", stop and tell me the exact wildcard DNS record to create.
+9. If no Cloudflare token is provided and the installer prints "manual dns", stop and tell me the exact wildcard DNS record to create.
 10. After DNS exists, open or curl https://k8s.<my-domain>.
 
 Do not use browser-based deployment. The dashboard is deployed by the installer through ship.
@@ -233,24 +240,24 @@ variables to set and can be rerun safely.
 With `SHIP_ONBOARD=1`, it also runs:
 
 ```sh
+scripts/bootstrap-kind.sh # when Tailscale OAuth env vars are present
 deploy-system/deploy-domain.sh
 deploy-system/deploy-dashboard.sh
 ```
 
-That applies the default Tailscale Gateway, prints the remaining DNS action, and
-deploys the dashboard as the normal Ship service named `k8s`.
+That applies the default Tailscale Gateway, creates Cloudflare DNS when
+`CLOUDFLARE_API_TOKEN` is set, and deploys the dashboard as the normal Ship
+service named `k8s`.
 
-The default config file is:
+The values you normally fill are:
 
 ```sh
 SHIP_DOMAIN=mydomain.com
-SHIP_NAMESPACE=ship-services
-SHIP_GATEWAY_NAMESPACE=ship-system
-SHIP_GATEWAY_NAME=ship-tailscale
-SHIP_INTERNET_GATEWAY_NAME=ship-internet
-SHIP_DNS=manual
-SHIP_IMAGE_PREFIX=ship
-KIND_CLUSTER=ship
+CLOUDFLARE_API_TOKEN=
+TS_OAUTH_CLIENT_ID=
+TS_OAUTH_CLIENT_SECRET=
+# Optional; defaults to k8s.
+# SHIP_DASHBOARD_SERVICE=ops
 ```
 
 Environment variables and CLI flags override values from

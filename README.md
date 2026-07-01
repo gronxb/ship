@@ -16,9 +16,9 @@ The project has three parts:
 ## Status
 
 Ship is production-oriented but intentionally small. The default exposure mode is
-tailnet-only through the Tailscale Kubernetes Operator. DNS setup is
-provider-agnostic: onboarding prints the exact wildcard record to create wherever
-the domain is managed.
+tailnet-only through the Tailscale Kubernetes Operator. If
+`CLOUDFLARE_API_TOKEN` is set, onboarding creates the wildcard DNS record in
+Cloudflare; otherwise it prints the exact record to create manually.
 
 ## Requirements
 
@@ -40,21 +40,31 @@ troubleshooting, and uninstall notes, see
 
 ### For humans
 
-For a local kind install from a blank machine, bootstrap the cluster first:
+For a local kind install with a Cloudflare-managed domain, fill the environment
+values and run one command:
 
 ```sh
-TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
+curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | \
+  CLOUDFLARE_API_TOKEN=<token> \
+  SHIP_DOMAIN=mydomain.com \
+  TS_OAUTH_CLIENT_ID=<client-id> \
+  TS_OAUTH_CLIENT_SECRET=<client-secret> \
+  SHIP_ONBOARD=1 \
+  sh
 ```
 
-Install Ship, deploy the Gateway, deploy the `k8s.<domain>` dashboard, and leave
-the CLI ready:
+That installs Ship, creates/selects `kind-ship`, installs Envoy Gateway and the
+Tailscale Operator, publishes `*.mydomain.com` in Cloudflare, and deploys the
+dashboard. The default dashboard service is `k8s`; override it with
+`SHIP_DASHBOARD_SERVICE=ops`.
+
+Without Cloudflare, keep the same command without `CLOUDFLARE_API_TOKEN`; Ship
+prints the wildcard DNS record to create manually:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=mydomain.com SHIP_ONBOARD=1 sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
-
-Ship prints the wildcard DNS record to create at your DNS provider:
 
 ```sh
 manual dns: create *.mydomain.com as DNS-only CNAME/A record to <gateway-address>
@@ -84,12 +94,11 @@ Use this prompt with an LLM/coding agent that has terminal access:
 
 ```text
 Set up Ship from a blank local Kubernetes environment.
-Ask me for my base domain and Tailscale Kubernetes Operator OAuth client id/secret if I did not provide them.
-Run ./scripts/bootstrap-kind.sh with TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET.
-Then run:
-curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=<my-domain> SHIP_ONBOARD=1 sh
+Ask me for my Cloudflare-managed base domain, Cloudflare API token, and Tailscale Kubernetes Operator OAuth client id/secret if I did not provide them.
+Run:
+curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | CLOUDFLARE_API_TOKEN=<token> SHIP_DOMAIN=<my-domain> TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> SHIP_ONBOARD=1 sh
 Then export PATH="$HOME/.local/bin:$PATH", verify ship --help, verify deployment/k8s is rolled out, and open or curl https://k8s.<my-domain>.
-If the installer prints "manual dns", pause and tell me the exact wildcard DNS record to create.
+If no Cloudflare token is provided and the installer prints "manual dns", pause and tell me the exact wildcard DNS record to create.
 Do not use browser-based deployment; deploy the dashboard with ship.
 ```
 
@@ -100,14 +109,11 @@ flags override those values.
 
 ```sh
 SHIP_DOMAIN=mydomain.com
-SHIP_NAMESPACE=ship-services
-SHIP_GATEWAY_NAMESPACE=ship-system
-SHIP_GATEWAY_NAME=ship-tailscale
-SHIP_INTERNET_GATEWAY_NAME=ship-internet
-SHIP_DNS=manual
-SHIP_IMAGE_PREFIX=ship
-KIND_CLUSTER=ship
-REGISTRY=
+CLOUDFLARE_API_TOKEN=
+TS_OAUTH_CLIENT_ID=
+TS_OAUTH_CLIENT_SECRET=
+# Optional; defaults to k8s.
+# SHIP_DASHBOARD_SERVICE=ops
 ```
 
 Common overrides:
