@@ -58,6 +58,17 @@ TAILSCALE_CLIENT_SECRET=<client-secret>
 # SHIP_DASHBOARD_SERVICE=ops
 ```
 
+Get the values:
+
+- `SHIP_DOMAIN`: the Cloudflare-managed base domain, such as `mydomain.com`.
+- `CLOUDFLARE_API_TOKEN`: Cloudflare dashboard -> My Profile -> API Tokens ->
+  Create Token -> Edit zone DNS. Use `Zone:DNS:Edit` and `Zone:Zone:Read`,
+  scoped to the zone for `SHIP_DOMAIN`.
+- `TAILSCALE_CLIENT_ID` / `TAILSCALE_CLIENT_SECRET`: Tailscale admin console ->
+  Access controls, add `tag:k8s-operator` and `tag:k8s` ownership, then create
+  an OAuth client for the Kubernetes Operator with the `tag:k8s-operator` tag.
+  Grant Services read/write, Devices Core read/write, and Auth Keys read/write.
+
 Run 0 to 100:
 
 ```sh
