@@ -40,34 +40,28 @@ troubleshooting, and uninstall notes, see
 
 ### For humans
 
-For a local kind install with a Cloudflare-managed domain, fill the environment
-values and run one command:
+Install the CLI:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | \
-  CLOUDFLARE_API_TOKEN=<token> \
-  SHIP_DOMAIN=mydomain.com \
-  TAILSCALE_CLIENT_ID=<client-id> \
-  TAILSCALE_CLIENT_SECRET=<client-secret> \
-  SHIP_ONBOARD=1 \
-  sh
-```
-
-That installs Ship, creates/selects `kind-ship`, installs Envoy Gateway and the
-Tailscale Operator, publishes `*.mydomain.com` in Cloudflare, and deploys the
-dashboard. The default dashboard service is `k8s`; override it with
-`SHIP_DASHBOARD_SERVICE=ops`.
-
-Without Cloudflare, keep the same command without `CLOUDFLARE_API_TOKEN`; Ship
-prints the wildcard DNS record to create manually:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=mydomain.com SHIP_ONBOARD=1 sh
+curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
+Fill `.env`:
+
 ```sh
-manual dns: create *.mydomain.com as DNS-only CNAME/A record to <gateway-address>
+SHIP_DOMAIN=mydomain.com
+CLOUDFLARE_API_TOKEN=<token>
+TAILSCALE_CLIENT_ID=<client-id>
+TAILSCALE_CLIENT_SECRET=<client-secret>
+# Optional; defaults to k8s.
+# SHIP_DASHBOARD_SERVICE=ops
+```
+
+Run 0 to 100:
+
+```sh
+ship install
 ```
 
 Then verify:
@@ -96,10 +90,9 @@ Use this prompt with an LLM/coding agent that has terminal access:
 Set up Ship from a blank local Kubernetes environment.
 Ask me for my Cloudflare-managed base domain, Cloudflare API token, and Tailscale Kubernetes Operator OAuth client id/secret if I did not provide them.
 Run:
-curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | CLOUDFLARE_API_TOKEN=<token> SHIP_DOMAIN=<my-domain> TAILSCALE_CLIENT_ID=<client-id> TAILSCALE_CLIENT_SECRET=<client-secret> SHIP_ONBOARD=1 sh
-Then export PATH="$HOME/.local/bin:$PATH", verify ship --help, verify deployment/k8s is rolled out, and open or curl https://k8s.<my-domain>.
-If no Cloudflare token is provided and the installer prints "manual dns", pause and tell me the exact wildcard DNS record to create.
-Do not use browser-based deployment; deploy the dashboard with ship.
+curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh
+Then export PATH="$HOME/.local/bin:$PATH", create .env with SHIP_DOMAIN, CLOUDFLARE_API_TOKEN, TAILSCALE_CLIENT_ID, and TAILSCALE_CLIENT_SECRET, run ship install, verify deployment/k8s is rolled out, and open or curl https://k8s.<my-domain>.
+Use ship uninstall for teardown.
 ```
 
 ## Configuration

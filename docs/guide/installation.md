@@ -1,50 +1,43 @@
 # Installation
 
-Ship installs as a small CLI plus Kubernetes Gateway/dashboard resources. The
-default path is tailnet-only: Ship prints the wildcard DNS record you need to
-create, then deploys the dashboard at `https://k8s.<your-domain>`.
+Ship installs as a small CLI first. After you fill `.env`, `ship install`
+creates the local kind cluster, Gateway resources, Cloudflare wildcard DNS, and
+dashboard at `https://k8s.<your-domain>`.
 
 | You want | Run | Lands on disk or cluster |
 | --- | --- | --- |
-| CLI only | Installer with a domain argument | `~/.local/bin/ship` and `~/.config/ship/config.env` |
-| Blank local kind cluster | `./scripts/bootstrap-kind.sh` | `kind-ship` plus Gateway API, Envoy Gateway, and Tailscale Operator |
-| CLI + Gateway + dashboard | Installer with `SHIP_ONBOARD=1` | CLI/config plus Ship Gateway resources and the `k8s` dashboard service |
+| CLI only | `curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh \| sh` | `~/.local/bin/ship` |
+| 0 to 100 setup | `ship install` | `kind-ship`, Gateway resources, DNS, and dashboard |
+| 100 to 0 teardown | `ship uninstall` | Removes DNS, cluster resources, and Ship config |
 | Source checkout | `make test` then `go build -o ~/.local/bin/ship ./cmd/ship` | Local development binary |
 
 ## For Humans
 
-Recommended one-liner:
-
-For local kind installs with a Cloudflare-managed domain, fill the environment
-values and run one command:
+Install the CLI:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | \
-  CLOUDFLARE_API_TOKEN=<token> \
-  SHIP_DOMAIN=mydomain.com \
-  TAILSCALE_CLIENT_ID=<client-id> \
-  TAILSCALE_CLIENT_SECRET=<client-secret> \
-  SHIP_ONBOARD=1 \
-  sh
-```
-
-The default dashboard service is `k8s`; set `SHIP_DASHBOARD_SERVICE=ops` to use
-another name. Without Cloudflare, omit `CLOUDFLARE_API_TOKEN` and create the
-printed wildcard DNS record manually.
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=mydomain.com SHIP_ONBOARD=1 sh
+curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Replace `mydomain.com` with the domain you want Ship to use. The installer
-prints the manual wildcard DNS record:
+Fill `.env`:
 
-```text
-manual dns: create *.mydomain.com as DNS-only CNAME/A record to <gateway-address>
+```sh
+SHIP_DOMAIN=mydomain.com
+CLOUDFLARE_API_TOKEN=<token>
+TAILSCALE_CLIENT_ID=<client-id>
+TAILSCALE_CLIENT_SECRET=<client-secret>
+# Optional; defaults to k8s.
+# SHIP_DASHBOARD_SERVICE=ops
 ```
 
-Create that record at your DNS provider, then verify:
+Run setup:
+
+```sh
+ship install
+```
+
+Then verify:
 
 ```sh
 ship --help
@@ -82,15 +75,13 @@ cluster named ship first.
 1. Ask me for the Cloudflare-managed base domain if I did not provide one.
 2. Ask me for Cloudflare API token and Tailscale Kubernetes Operator OAuth client id/secret if I did not provide them.
 3. Check that go, docker, kubectl, kind, and helm are available for a local install.
-4. Run:
-   curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | CLOUDFLARE_API_TOKEN=<token> SHIP_DOMAIN=<my-domain> TAILSCALE_CLIENT_ID=<client-id> TAILSCALE_CLIENT_SECRET=<client-secret> SHIP_ONBOARD=1 sh
-6. Export PATH="$HOME/.local/bin:$PATH".
-7. Verify ship --help.
-8. Verify kubectl rollout status deployment/k8s -n ship-services --timeout=180s.
-9. If no Cloudflare token is provided and the installer prints "manual dns", stop and tell me the exact wildcard DNS record to create.
-10. After DNS exists, open or curl https://k8s.<my-domain>.
-
-Do not use browser-based deployment. The dashboard is deployed by the installer through ship.
+4. Run `curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh`.
+5. Export PATH="$HOME/.local/bin:$PATH".
+6. Create `.env` with SHIP_DOMAIN, CLOUDFLARE_API_TOKEN, TAILSCALE_CLIENT_ID, and TAILSCALE_CLIENT_SECRET.
+7. Run `ship install`.
+8. Verify `kubectl rollout status deployment/k8s -n ship-services --timeout=180s`.
+9. Open or curl https://k8s.<my-domain>.
+10. Use `ship uninstall` for teardown.
 ```
 
 ### Agent runbook
@@ -115,58 +106,31 @@ Do not use browser-based deployment. The dashboard is deployed by the installer 
    If a required local binary is missing, install it only when the environment
    has an obvious package manager and the user already allows local installs.
    Otherwise report the missing binary and stop.
-4. For a new local kind install, bootstrap the cluster:
+4. Install the CLI:
 
    ```sh
-   TAILSCALE_CLIENT_ID=<client-id> TAILSCALE_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
-   kubectl get namespace
-   ```
-
-   The script creates `kind-ship` when needed, installs Envoy Gateway, and
-   installs the Tailscale Kubernetes Operator when OAuth credentials are
-   provided. Do not use service names such as `e2e`, `k8s`, or `nitro-app` as
-   kind cluster names; those are deployed service names inside the cluster.
-5. For an existing remote cluster, confirm cluster access:
-
-   ```sh
-   kubectl config current-context
-   kubectl get namespace
-   ```
-
-   If this fails because the user is not logged in or the context is wrong,
-   stop and ask for the correct Kubernetes context. This confirmation is only
-   needed for existing or remote clusters, not for a new local kind cluster the
-   agent just created.
-6. Confirm the required cluster add-ons exist before running Ship onboarding:
-
-   ```sh
-   kubectl api-resources | grep -E 'gatewayclasses|gateways|httproutes'
-   kubectl get gatewayclass
-   kubectl get pods -A | grep -Ei 'envoy|tailscale'
-   ```
-
-   If these are missing on a local kind cluster, rerun
-   `./scripts/bootstrap-kind.sh`. On remote clusters, install Kubernetes Gateway
-   API, Envoy Gateway, and the Tailscale Kubernetes Operator using their
-   official install docs, then rerun the checks. Ship's installer applies Ship's
-   Gateway and dashboard resources; `scripts/bootstrap-kind.sh` handles the
-   local kind add-ons.
-7. Run the installer:
-
-   ```sh
-   curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=<my-domain> SHIP_ONBOARD=1 sh
+   curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh
    export PATH="$HOME/.local/bin:$PATH"
    ```
 
-8. Capture the DNS line. If the installer prints:
+5. Create `.env`:
 
-   ```text
-   manual dns: create *.<my-domain> as DNS-only CNAME/A record to <gateway-address>
+   ```sh
+   SHIP_DOMAIN=<my-domain>
+   CLOUDFLARE_API_TOKEN=<token>
+   TAILSCALE_CLIENT_ID=<client-id>
+   TAILSCALE_CLIENT_SECRET=<client-secret>
    ```
 
-   give the user that exact record and pause until DNS exists. Do not invent or
-   create DNS records unless the user has explicitly provided DNS-provider
-   credentials and asked you to manage DNS.
+6. Run setup:
+
+   ```sh
+   ship install
+   ```
+
+   This creates `kind-ship` when needed, installs Envoy Gateway and the
+   Tailscale Kubernetes Operator, applies Ship Gateway resources, creates
+   Cloudflare DNS, and deploys the dashboard.
 9. Verify the CLI and cluster rollout:
 
    ```sh
@@ -234,13 +198,13 @@ variables to set and can be rerun safely.
 
 ## What The Installer Does
 
-`install.sh` downloads the repository archive, builds `cmd/ship`, writes
-`~/.config/ship/config.env`, and installs the binary at `~/.local/bin/ship`.
+`install.sh` downloads the repository archive, builds `cmd/ship`, and installs
+the binary at `~/.local/bin/ship`.
 
-With `SHIP_ONBOARD=1`, it also runs:
+`ship install` reads `.env`, writes `~/.config/ship/config.env`, and runs:
 
 ```sh
-scripts/bootstrap-kind.sh # when Tailscale OAuth env vars are present
+scripts/bootstrap-kind.sh
 deploy-system/deploy-domain.sh
 deploy-system/deploy-dashboard.sh
 ```
@@ -339,25 +303,17 @@ make onboarding-smoke
 
 ## Uninstall
 
-Remove the local CLI and config:
+Remove the Ship-managed system:
+
+```sh
+ship uninstall
+```
+
+Remove only the local CLI binary:
 
 ```sh
 rm -f ~/.local/bin/ship
-rm -rf ~/.config/ship
 ```
 
-Remove the default cluster resources if this cluster is dedicated to Ship:
-
-```sh
-kubectl delete namespace ship-services
-kubectl delete namespace ship-system
-```
-
-Remove the local kind cluster when it is dedicated to Ship:
-
-```sh
-kind delete cluster --name ship
-```
-
-If the namespaces contain resources you created outside Ship, delete only the
-Ship-managed `Deployment`, `Service`, and `HTTPRoute` objects instead.
+`ship uninstall --dry-run` prints the DNS, kind, and config cleanup plan without
+deleting anything.

@@ -22,6 +22,7 @@ tar \
 fakebin="$work/bin"
 home="$work/home"
 log="$work/commands.log"
+real_go="$(command -v go)"
 mkdir -p "$fakebin" "$home"
 
 cat > "$fakebin/curl" <<'SH'
@@ -129,70 +130,7 @@ SH
 cat > "$fakebin/go" <<'SH'
 #!/bin/sh
 printf 'go %s\n' "$*" >> "$SHIP_TEST_LOG"
-case "$1" in
-  build)
-    out=""
-    while [ "$#" -gt 0 ]; do
-      case "$1" in
-        -o)
-          out="$2"
-          shift 2
-          ;;
-        *)
-          shift
-          ;;
-      esac
-    done
-    if [ -z "$out" ]; then
-      printf 'fake go build requires -o\n' >&2
-      exit 2
-    fi
-    mkdir -p "$(dirname "$out")"
-    cat > "$out" <<'BIN'
-#!/bin/sh
-if [ "${1:-}" = "--help" ]; then
-  printf 'usage: ship --service <name> [--cwd DIR] [--port PORT] [--dry-run] [--json]\n'
-  exit 0
-fi
-printf 'ship %s\n' "$*" >> "$SHIP_TEST_LOG"
-service=""
-env_file=""
-kind_cluster="${KIND_CLUSTER:-ship}"
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --service)
-      service="$2"
-      shift 2
-      ;;
-    --kind-cluster)
-      kind_cluster="$2"
-      shift 2
-      ;;
-    --env-file)
-      env_file="$2"
-      shift 2
-      ;;
-    *)
-      shift
-      ;;
-  esac
-done
-: "${service:=k8s}"
-printf 'docker build -f Dockerfile -t ship/%s:latest .\n' "$service" >> "$SHIP_TEST_LOG"
-printf 'kind load docker-image --name %s ship/%s:latest\n' "$kind_cluster" "$service" >> "$SHIP_TEST_LOG"
-if [ -n "$env_file" ]; then
-  printf 'secret env file %s\n' "$env_file" >> "$SHIP_TEST_LOG"
-  sed 's/^/secret env /' "$env_file" >> "$SHIP_TEST_LOG"
-fi
-printf 'kubectl rollout status deployment/%s -n ship-services --timeout=180s\n' "$service" >> "$SHIP_TEST_LOG"
-BIN
-    chmod +x "$out"
-    ;;
-  *)
-    printf 'fake go only supports build\n' >&2
-    exit 2
-    ;;
-esac
+exec "$SHIP_TEST_REAL_GO" "$@"
 SH
 
 cat > "$fakebin/ship" <<'SH'
@@ -210,19 +148,17 @@ HOME="$home" \
 SHIP_TEST_INSTALL="$root/install.sh" \
 SHIP_TEST_TARBALL="$repo_tar" \
 SHIP_TEST_LOG="$log" \
-SHIP_DOMAIN=example.com \
-SHIP_DASHBOARD_HOST=stale.example.net \
-SHIP_ONBOARD=1 \
+SHIP_TEST_REAL_GO="$real_go" \
 sh -c 'curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh' \
   > "$work/stdout" \
   2> "$work/stderr"
 
 PATH="$home/.local/bin:$PATH" HOME="$home" ship --help > "$work/help"
 
-grep -Fq 'ready: ship CLI and https://k8s.example.com' "$work/stdout"
-grep -Fq 'manual dns: create *.example.com' "$work/stdout"
-if grep -Fq 'SHIP_DNS=manual' "$home/.config/ship/config.env"; then
-  printf 'expected default manual DNS to stay implicit in generated config\n' >&2
+grep -Fq 'installed:' "$work/stdout"
+grep -Fq 'next: fill .env, then run: ship install' "$work/stdout"
+if [ -e "$home/.config/ship/config.env" ]; then
+  printf 'installer should not create config before ship install\n' >&2
   exit 1
 fi
 if grep -iq 'cloudflare' "$work/stdout" "$work/stderr"; then
@@ -231,40 +167,52 @@ if grep -iq 'cloudflare' "$work/stdout" "$work/stderr"; then
   printf 'default onboarding must not mention Cloudflare\n' >&2
   exit 1
 fi
-grep -Fq 'docker build' "$log"
-grep -Fq 'kind load docker-image --name ship ship/k8s:' "$log"
-grep -Fq 'kubectl rollout status deployment/k8s -n ship-services --timeout=180s' "$log"
-grep -Fq 'verbs: ["get", "list", "patch"]' "$log"
-grep -Fq 'secret env SHIP_DASHBOARD_HOST=k8s.example.com' "$log"
 grep -Fq 'usage: ship' "$work/help"
 
 cloudflare_home="$work/cloudflare-home"
 mkdir -p "$cloudflare_home"
 cloudflare_log="$work/cloudflare-commands.log"
+cloudflare_env="$work/cloudflare.env"
+cat > "$cloudflare_env" <<'EOF'
+SHIP_DOMAIN=example.com
+SHIP_DRY_RUN=1
+SHIP_DASHBOARD_SERVICE=ops
+CLOUDFLARE_API_TOKEN=test-token
+TAILSCALE_CLIENT_ID=test-client
+TAILSCALE_CLIENT_SECRET=test-secret
+SHIP_BIN=__SHIP_BIN__
+EOF
+sed "s#__SHIP_BIN__#$home/.local/bin/ship#" "$cloudflare_env" > "$cloudflare_env.tmp"
+mv "$cloudflare_env.tmp" "$cloudflare_env"
 
-PATH="$fakebin:$PATH" \
+PATH="$home/.local/bin:$fakebin:$PATH" \
 HOME="$cloudflare_home" \
-SHIP_TEST_INSTALL="$root/install.sh" \
-SHIP_TEST_TARBALL="$repo_tar" \
 SHIP_TEST_LOG="$cloudflare_log" \
-SHIP_DOMAIN=example.com \
-SHIP_ONBOARD=1 \
-SHIP_DRY_RUN=1 \
-SHIP_DASHBOARD_SERVICE=ops \
-CLOUDFLARE_API_TOKEN=test-token \
-TAILSCALE_CLIENT_ID=test-client \
-TAILSCALE_CLIENT_SECRET=test-secret \
-sh -c 'curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh' \
+SHIP_SOURCE_DIR="$root" \
+ship install --env-file "$cloudflare_env" \
   > "$work/cloudflare-stdout" \
   2> "$work/cloudflare-stderr"
 
-grep -Fq 'ready: ship CLI and https://ops.example.com' "$work/cloudflare-stdout"
+grep -Fq 'ready: ship install complete at https://ops.example.com' "$work/cloudflare-stdout"
 grep -Fq 'SHIP_DNS=cloudflare' "$cloudflare_home/.config/ship/config.env"
 grep -Fq 'SHIP_DASHBOARD_SERVICE=ops' "$cloudflare_home/.config/ship/config.env"
 grep -Fq 'kind create cluster --name ship' "$cloudflare_log"
 grep -Fq 'helm upgrade --install tailscale-operator tailscale/tailscale-operator' "$cloudflare_log"
 grep -Fq 'dry-run: *.example.com CNAME ship-tailscale.tailnet.test proxied=false' "$work/cloudflare-stdout"
-grep -Fq 'ship --service ops' "$cloudflare_log"
+grep -Fq 'docker build -f' "$cloudflare_log"
+grep -Fq -- '-t ship/ops:' "$cloudflare_log"
+grep -Fq 'kind load docker-image --name ship ship/ops:' "$cloudflare_log"
+grep -Fq 'kubectl rollout status deployment/ops -n ship-services --timeout=180s' "$cloudflare_log"
+
+PATH="$home/.local/bin:$fakebin:$PATH" \
+HOME="$cloudflare_home" \
+SHIP_TEST_LOG="$cloudflare_log" \
+SHIP_SOURCE_DIR="$root" \
+ship uninstall --env-file "$cloudflare_env" --dry-run \
+  > "$work/uninstall-stdout" \
+  2> "$work/uninstall-stderr"
+grep -Fq 'delete Cloudflare wildcard DNS for *.example.com' "$work/uninstall-stdout"
+grep -Fq 'kind delete cluster --name ship' "$work/uninstall-stdout"
 
 env_home="$work/env-home"
 mkdir -p "$env_home/.config/ship"

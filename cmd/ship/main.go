@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 
 	"github.com/gronxb/ship/internal/deploy"
@@ -29,11 +28,15 @@ func run(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		switch args[0] {
 		case "-h", "--help", "help":
-			fmt.Println("usage: ship --service <name> [--cwd DIR] [--port PORT] [--exposure tailscale|internet] [--dry-run] [--json]")
+			fmt.Println("usage: ship install|uninstall|--service <name> [options]")
 			return nil
 		case "-v", "--version", "version":
 			fmt.Println("ship " + version)
 			return nil
+		case "install":
+			return runInstall(ctx, args[1:])
+		case "uninstall":
+			return runUninstall(ctx, args[1:])
 		}
 	}
 	return runDeploy(ctx, args)
@@ -86,11 +89,11 @@ func configDefault(config map[string]string, name string, fallback string) strin
 func loadConfig() map[string]string {
 	path := os.Getenv("SHIP_CONFIG")
 	if path == "" {
-		configDir, err := os.UserConfigDir()
+		configPath, _, err := shipConfigPath()
 		if err != nil {
 			return map[string]string{}
 		}
-		path = filepath.Join(configDir, "ship", "config.env")
+		path = configPath
 	}
 
 	file, err := os.Open(path)
