@@ -1,4 +1,4 @@
-.PHONY: test go-test dashboard-test dashboard-build readiness onboarding-smoke deploy-system-validate
+.PHONY: test go-test dashboard-test dashboard-build readiness onboarding-smoke deploy-system-validate dev-refresh
 
 test: readiness onboarding-smoke go-test dashboard-test dashboard-build
 
@@ -19,3 +19,6 @@ onboarding-smoke:
 
 deploy-system-validate:
 	cd deploy-system && ./validate.sh
+
+dev-refresh:
+	./scripts/dev-refresh.sh

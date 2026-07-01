@@ -46,14 +46,71 @@ Then run:
 ship install
 ```
 
-Deploy any Dockerfile project:
+Ship can deploy any project that has a `Dockerfile`; the framework and runtime
+are up to you. This example uses a Hono hello-world app on Bun. Hono is a small
+web framework for the Web Platform, and its
+[Bun guide](https://hono.dev/docs/getting-started/bun) starts from the same tiny
+app shape.
 
 ```sh
-cd /path/to/app
+bun create hono@latest demo
+cd demo
+bun install
+```
+
+Use the Bun template, then make sure `src/index.ts` returns a simple response:
+
+```ts
+import { Hono } from 'hono'
+
+const app = new Hono()
+
+app.get('/', (c) => c.text('Hello Ship!'))
+
+export default app
+```
+
+Add a minimal `Dockerfile`:
+
+```Dockerfile
+FROM oven/bun:1
+
+WORKDIR /app
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
+COPY . .
+
+EXPOSE 3000
+CMD ["bun", "run", "src/index.ts"]
+```
+
+Deploy it:
+
+```sh
 ship --service demo
 ```
 
-Ship creates `https://demo.your-domain.com`.
+Open `https://demo.your-domain.com` to see `Hello Ship!`. For your own app, keep
+the same pattern: add a `Dockerfile`, then run `ship --service <name>`.
+
+## Agent Skill
+
+Install the Ship skill once:
+
+```sh
+npx skills add gronxb/ship
+```
+
+Then open a project in Claude Code, Codex, or another agent that can use the
+skill:
+
+```text
+$ship deploy this project as demo
+```
+
+That is enough. The skill can create a suitable `Dockerfile` when the project
+does not have one, deploy with Ship, and give you
+`https://demo.your-domain.com`.
 
 ## Exposure Model
 

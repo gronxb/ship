@@ -47,7 +47,8 @@ require_dir start-app/src
 
 require_text README.md "Quick Start"
 require_text README.md "Install the CLI"
-require_text README.md "Deploy any Dockerfile project"
+require_text README.md "Ship can deploy any project"
+require_text README.md "Agent Skill"
 require_text README.md "ship install"
 require_text README.md "Security"
 require_text README.md "make test"
