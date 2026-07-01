@@ -96,10 +96,10 @@ Grid: max width 1180px, two columns above 880px, one column below. Breakpoints: 
 - Motion: none.
 
 ### Deployment Card
-- Structure: service heading, status badges, host/image metadata, tabbed log body.
+- Structure: service heading, status badges, host metadata, direct URL action, preview viewport, tabbed log body.
 - Variants: tailscale-only, internet, dry-run, cluster-managed.
 - Spacing: --space-4 inner groups, --space-6 card body.
-- States: loading, empty, error, active exposure update.
+- States: loading, empty, error, active exposure update, preview unavailable.
 - Accessibility: cards use articles, tabs are keyboard accessible, long logs stay selectable.
 - Motion: 120ms border/background transition.
 

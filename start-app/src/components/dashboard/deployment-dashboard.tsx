@@ -75,17 +75,17 @@ export function DeploymentDashboard({
   const summary = useMemo(() => deploymentSummary(deployments), [deployments])
 
   return (
-    <main className="min-h-svh bg-background px-4 py-8 text-foreground md:px-8">
+    <main className="dark min-h-svh bg-background px-4 py-8 text-foreground md:px-8">
       <div className="mx-auto grid w-full max-w-6xl gap-6">
         <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
             <Badge variant="outline">Ship Gateway</Badge>
-            <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-normal text-balance md:text-5xl">
-              Deployed containers
+            <h1 className="mt-4 max-w-3xl text-3xl font-semibold tracking-normal text-balance md:text-4xl">
+              Projects
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-              Review running services, route exposure, network requests, and
-              terminal output from the Kubernetes edge.
+              Preview running services, open their routes, and inspect network
+              or terminal evidence from the Kubernetes edge.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -131,7 +131,7 @@ export function DeploymentDashboard({
           </Card>
         ) : null}
 
-        <section className="grid gap-4">
+        <section className="grid gap-4 lg:grid-cols-2">
           {loading ? (
             <LoadingCards />
           ) : deployments.length === 0 ? (

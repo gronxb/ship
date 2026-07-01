@@ -34,6 +34,7 @@ require_file .github/ISSUE_TEMPLATE/bug_report.yml
 require_file .github/ISSUE_TEMPLATE/feature_request.yml
 require_file .env.example
 require_file install.sh
+require_file scripts/bootstrap-kind.sh
 require_file deploy-system/validate.sh
 require_file deploy-system/deploy-dashboard.sh
 require_file start-app/Dockerfile
@@ -49,6 +50,7 @@ require_text README.md "For humans"
 require_text README.md "For agents"
 require_text README.md "SHIP_ONBOARD=1"
 require_text README.md "manual dns"
+require_text README.md "bootstrap-kind.sh"
 require_text README.md "SHIP_DNS=manual"
 require_text README.md "provider-agnostic"
 require_text README.md "Security"
@@ -57,6 +59,9 @@ require_text deploy-system/README.md "./deploy-dashboard.sh"
 require_text deploy-system/README.md "Default DNS mode"
 require_text install.sh "SHIP_ONBOARD"
 require_text install.sh "SHIP_DNS=manual"
+require_text scripts/bootstrap-kind.sh "kind create cluster"
+require_text scripts/bootstrap-kind.sh "envoyproxy/gateway-helm"
+require_text scripts/bootstrap-kind.sh "tailscale/tailscale-operator"
 require_text .env.example "SHIP_DNS=manual"
 require_text CONTRIBUTING.md "Pull Request Checklist"
 require_text SECURITY.md "Security Model"

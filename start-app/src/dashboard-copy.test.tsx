@@ -102,6 +102,12 @@ describe("dashboard surface", () => {
 
     expect(screen.getByText("demo")).toBeDefined()
     expect(screen.getByText("demo.example.com")).toBeDefined()
+    expect(screen.getByTitle("Preview of demo").getAttribute("src")).toBe(
+      "https://demo.example.com"
+    )
+    expect(
+      screen.getByRole("link", { name: "Open URL" }).getAttribute("href")
+    ).toBe("https://demo.example.com")
     expect(screen.getByRole("button", { name: "Refresh" })).toBeDefined()
     expect(
       screen.getByRole("button", { name: "Expose to internet" })

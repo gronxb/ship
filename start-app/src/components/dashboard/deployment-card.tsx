@@ -71,7 +71,7 @@ export function DeploymentCard({
   }
 
   return (
-    <Card className="transition-colors hover:ring-foreground/20">
+    <Card className="group transition-colors hover:bg-card/90 hover:ring-foreground/20">
       <CardHeader className="gap-3 md:grid-cols-[1fr_auto]">
         <CardTitle className="flex flex-wrap items-center gap-2">
           <span>{deployment.serviceName}</span>
@@ -85,7 +85,16 @@ export function DeploymentCard({
         <CardDescription className="break-all">
           {deployment.host}
         </CardDescription>
-        <div className="grid gap-2 md:col-start-2 md:row-span-2 md:row-start-1 md:justify-items-end">
+        <div className="flex flex-wrap gap-2 md:col-start-2 md:row-span-2 md:row-start-1 md:justify-end">
+          <Button asChild size="sm" variant="outline">
+            <a
+              href={deploymentUrl(deployment)}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Open URL
+            </a>
+          </Button>
           {deployment.tailscaleOnly ? (
             <Button
               aria-pressed={false}
@@ -99,13 +108,14 @@ export function DeploymentCard({
             </Button>
           ) : null}
           {exposureError ? (
-            <p className="max-w-64 text-right text-xs text-destructive">
+            <p className="basis-full text-right text-xs text-destructive">
               {exposureError}
             </p>
           ) : null}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="grid gap-4">
+        <PreviewPanel deployment={deployment} />
         <Tabs
           onValueChange={(value) => {
             if (isDashboardTab(value)) {
@@ -145,6 +155,33 @@ export function DeploymentCard({
       </CardContent>
     </Card>
   )
+}
+
+function PreviewPanel({ deployment }: { readonly deployment: Deployment }) {
+  return (
+    <div className="overflow-hidden rounded-lg border bg-background">
+      <div className="flex items-center justify-between border-b bg-muted/40 px-3 py-2">
+        <span className="truncate text-xs text-muted-foreground">
+          {deploymentUrl(deployment)}
+        </span>
+        <span className="rounded border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+          PREVIEW
+        </span>
+      </div>
+      <iframe
+        className="h-56 w-full bg-background"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        sandbox="allow-forms allow-popups allow-same-origin allow-scripts"
+        src={deploymentUrl(deployment)}
+        title={`Preview of ${deployment.serviceName}`}
+      />
+    </div>
+  )
+}
+
+function deploymentUrl(deployment: Deployment): string {
+  return `https://${deployment.host}`
 }
 
 async function responseErrorMessage(response: Response): Promise<string> {

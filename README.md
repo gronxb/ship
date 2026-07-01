@@ -26,15 +26,25 @@ the domain is managed.
 - Docker
 - kubectl access to the target cluster
 - kind or a container registry
-- Kubernetes Gateway API
-- Envoy Gateway
-- Tailscale Kubernetes Operator for the default private Gateway
+- Helm for local cluster bootstrap
+- Kubernetes Gateway API, Envoy Gateway, and Tailscale Kubernetes Operator for
+  the default private Gateway
 - cert-manager and a wildcard certificate issuer
 - pnpm 10 or newer for dashboard development
 
 ## Quick Start
 
+For a step-by-step installation guide, including an agent prompt,
+troubleshooting, and uninstall notes, see
+[docs/guide/installation.md](docs/guide/installation.md).
+
 ### For humans
+
+For a local kind install from a blank machine, bootstrap the cluster first:
+
+```sh
+TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
+```
 
 Install Ship, deploy the Gateway, deploy the `k8s.<domain>` dashboard, and leave
 the CLI ready:
@@ -73,8 +83,10 @@ Ship creates a `Deployment`, `Service`, and `HTTPRoute` for
 Use this prompt with an LLM/coding agent that has terminal access:
 
 ```text
-Set up Ship for my Kubernetes context.
-Run:
+Set up Ship from a blank local Kubernetes environment.
+Ask me for my base domain and Tailscale Kubernetes Operator OAuth client id/secret if I did not provide them.
+Run ./scripts/bootstrap-kind.sh with TS_OAUTH_CLIENT_ID and TS_OAUTH_CLIENT_SECRET.
+Then run:
 curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | SHIP_DOMAIN=<my-domain> SHIP_ONBOARD=1 sh
 Then export PATH="$HOME/.local/bin:$PATH", verify ship --help, verify deployment/k8s is rolled out, and open or curl https://k8s.<my-domain>.
 If the installer prints "manual dns", pause and tell me the exact wildcard DNS record to create.
@@ -115,6 +127,11 @@ commands, rendered manifests, recent container logs, and a control for promoting
 a Tailscale-only route to the internet Gateway. It still does not deploy new
 workloads from the browser. Onboarding deploys it as the normal Ship service
 `k8s`, so `https://k8s.mydomain.com` is the first verification target.
+
+Cluster names and service names are separate. A local kind cluster should be
+named `ship`, which creates the Kubernetes context `kind-ship`; services inside
+it can still be named `k8s`, `e2e`, `nitro-app`, or any other `ship --service`
+value.
 
 Redeploy it manually:
 
@@ -195,6 +212,12 @@ make readiness
 The release-readiness gate checks that the repository has the expected
 open-source metadata, CI workflow, install path, dashboard scripts, and non-root
 dashboard container configuration.
+
+Bootstrap a blank local kind cluster with Ship's required Gateway stack:
+
+```sh
+TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
+```
 
 ## Repository Layout
 
