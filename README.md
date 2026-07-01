@@ -33,8 +33,17 @@ curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Create `.env` from the `.env.example` shape and fill in your domain,
-Cloudflare token, and Tailscale OAuth credentials:
+Get the credentials, then create `.env` from the `.env.example` shape:
+
+- Cloudflare: create an
+  [API token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/)
+  from the Edit zone DNS template. Ship needs Zone DNS Edit for your domain,
+  and Zone Read too unless you set `CLOUDFLARE_ZONE_ID`.
+- Tailscale: follow the
+  [Kubernetes Operator credential setup](https://tailscale.com/docs/kubernetes-operator/install-operator#configure-tags-and-oauth-credentials):
+  add `tag:k8s-operator` and `tag:k8s`, then create an OAuth client with write
+  access for General/Services, Devices/Core, and Keys/Auth Keys on
+  `tag:k8s-operator`.
 
 ```env
 SHIP_DOMAIN=your-domain.com
