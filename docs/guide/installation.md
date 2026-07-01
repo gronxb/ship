@@ -22,8 +22,8 @@ values and run one command:
 curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | \
   CLOUDFLARE_API_TOKEN=<token> \
   SHIP_DOMAIN=mydomain.com \
-  TS_OAUTH_CLIENT_ID=<client-id> \
-  TS_OAUTH_CLIENT_SECRET=<client-secret> \
+  TAILSCALE_CLIENT_ID=<client-id> \
+  TAILSCALE_CLIENT_SECRET=<client-secret> \
   SHIP_ONBOARD=1 \
   sh
 ```
@@ -83,7 +83,7 @@ cluster named ship first.
 2. Ask me for Cloudflare API token and Tailscale Kubernetes Operator OAuth client id/secret if I did not provide them.
 3. Check that go, docker, kubectl, kind, and helm are available for a local install.
 4. Run:
-   curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | CLOUDFLARE_API_TOKEN=<token> SHIP_DOMAIN=<my-domain> TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> SHIP_ONBOARD=1 sh
+   curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | CLOUDFLARE_API_TOKEN=<token> SHIP_DOMAIN=<my-domain> TAILSCALE_CLIENT_ID=<client-id> TAILSCALE_CLIENT_SECRET=<client-secret> SHIP_ONBOARD=1 sh
 6. Export PATH="$HOME/.local/bin:$PATH".
 7. Verify ship --help.
 8. Verify kubectl rollout status deployment/k8s -n ship-services --timeout=180s.
@@ -118,7 +118,7 @@ Do not use browser-based deployment. The dashboard is deployed by the installer 
 4. For a new local kind install, bootstrap the cluster:
 
    ```sh
-   TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
+   TAILSCALE_CLIENT_ID=<client-id> TAILSCALE_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
    kubectl get namespace
    ```
 
@@ -216,7 +216,7 @@ names.
 Use the repository checkout when starting from no Kubernetes cluster:
 
 ```sh
-TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
+TAILSCALE_CLIENT_ID=<client-id> TAILSCALE_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
 ```
 
 The script:
@@ -254,8 +254,8 @@ The values you normally fill are:
 ```sh
 SHIP_DOMAIN=mydomain.com
 CLOUDFLARE_API_TOKEN=
-TS_OAUTH_CLIENT_ID=
-TS_OAUTH_CLIENT_SECRET=
+TAILSCALE_CLIENT_ID=
+TAILSCALE_CLIENT_SECRET=
 # Optional; defaults to k8s.
 # SHIP_DASHBOARD_SERVICE=ops
 ```

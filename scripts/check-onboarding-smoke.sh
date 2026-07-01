@@ -252,8 +252,8 @@ SHIP_ONBOARD=1 \
 SHIP_DRY_RUN=1 \
 SHIP_DASHBOARD_SERVICE=ops \
 CLOUDFLARE_API_TOKEN=test-token \
-TS_OAUTH_CLIENT_ID=test-client \
-TS_OAUTH_CLIENT_SECRET=test-secret \
+TAILSCALE_CLIENT_ID=test-client \
+TAILSCALE_CLIENT_SECRET=test-secret \
 sh -c 'curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh' \
   > "$work/cloudflare-stdout" \
   2> "$work/cloudflare-stderr"

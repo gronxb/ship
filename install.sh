@@ -58,8 +58,8 @@ case "$onboard" in
   1 | true | yes)
     PATH="$bin_dir:$PATH"
     export PATH
-    if [ -n "${TS_OAUTH_CLIENT_ID:-${TAILSCALE_OAUTH_CLIENT_ID:-}}" ] &&
-      [ -n "${TS_OAUTH_CLIENT_SECRET:-${TAILSCALE_OAUTH_CLIENT_SECRET:-}}" ]; then
+    if [ -n "${TAILSCALE_CLIENT_ID:-${TAILSCALE_OAUTH_CLIENT_ID:-${TS_OAUTH_CLIENT_ID:-}}}" ] &&
+      [ -n "${TAILSCALE_CLIENT_SECRET:-${TAILSCALE_OAUTH_CLIENT_SECRET:-${TS_OAUTH_CLIENT_SECRET:-}}}" ]; then
       (cd "$tmp" && ./scripts/bootstrap-kind.sh)
     fi
     (cd "$tmp/deploy-system" && ./deploy-domain.sh && ./deploy-dashboard.sh)

@@ -4,8 +4,8 @@ set -eu
 cluster="${KIND_CLUSTER:-ship}"
 context="${KIND_CONTEXT:-kind-$cluster}"
 envoy_version="${ENVOY_GATEWAY_VERSION:-v1.8.2}"
-tailscale_client_id="${TS_OAUTH_CLIENT_ID:-${TAILSCALE_OAUTH_CLIENT_ID:-}}"
-tailscale_client_secret="${TS_OAUTH_CLIENT_SECRET:-${TAILSCALE_OAUTH_CLIENT_SECRET:-}}"
+tailscale_client_id="${TAILSCALE_CLIENT_ID:-${TAILSCALE_OAUTH_CLIENT_ID:-${TS_OAUTH_CLIENT_ID:-}}}"
+tailscale_client_secret="${TAILSCALE_CLIENT_SECRET:-${TAILSCALE_OAUTH_CLIENT_SECRET:-${TS_OAUTH_CLIENT_SECRET:-}}}"
 
 need() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -52,11 +52,13 @@ else
 missing Tailscale OAuth credentials.
 
 Create a Tailscale OAuth client for the Kubernetes Operator, then rerun with:
-  TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
+  TAILSCALE_CLIENT_ID=<client-id> TAILSCALE_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
 
 Aliases also accepted:
   TAILSCALE_OAUTH_CLIENT_ID
   TAILSCALE_OAUTH_CLIENT_SECRET
+  TS_OAUTH_CLIENT_ID
+  TS_OAUTH_CLIENT_SECRET
 EOF
   exit 2
 fi

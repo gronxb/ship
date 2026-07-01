@@ -47,8 +47,8 @@ values and run one command:
 curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | \
   CLOUDFLARE_API_TOKEN=<token> \
   SHIP_DOMAIN=mydomain.com \
-  TS_OAUTH_CLIENT_ID=<client-id> \
-  TS_OAUTH_CLIENT_SECRET=<client-secret> \
+  TAILSCALE_CLIENT_ID=<client-id> \
+  TAILSCALE_CLIENT_SECRET=<client-secret> \
   SHIP_ONBOARD=1 \
   sh
 ```
@@ -96,7 +96,7 @@ Use this prompt with an LLM/coding agent that has terminal access:
 Set up Ship from a blank local Kubernetes environment.
 Ask me for my Cloudflare-managed base domain, Cloudflare API token, and Tailscale Kubernetes Operator OAuth client id/secret if I did not provide them.
 Run:
-curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | CLOUDFLARE_API_TOKEN=<token> SHIP_DOMAIN=<my-domain> TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> SHIP_ONBOARD=1 sh
+curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | CLOUDFLARE_API_TOKEN=<token> SHIP_DOMAIN=<my-domain> TAILSCALE_CLIENT_ID=<client-id> TAILSCALE_CLIENT_SECRET=<client-secret> SHIP_ONBOARD=1 sh
 Then export PATH="$HOME/.local/bin:$PATH", verify ship --help, verify deployment/k8s is rolled out, and open or curl https://k8s.<my-domain>.
 If no Cloudflare token is provided and the installer prints "manual dns", pause and tell me the exact wildcard DNS record to create.
 Do not use browser-based deployment; deploy the dashboard with ship.
@@ -110,8 +110,8 @@ flags override those values.
 ```sh
 SHIP_DOMAIN=mydomain.com
 CLOUDFLARE_API_TOKEN=
-TS_OAUTH_CLIENT_ID=
-TS_OAUTH_CLIENT_SECRET=
+TAILSCALE_CLIENT_ID=
+TAILSCALE_CLIENT_SECRET=
 # Optional; defaults to k8s.
 # SHIP_DASHBOARD_SERVICE=ops
 ```
@@ -220,7 +220,7 @@ dashboard container configuration.
 Bootstrap a blank local kind cluster with Ship's required Gateway stack:
 
 ```sh
-TS_OAUTH_CLIENT_ID=<client-id> TS_OAUTH_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
+TAILSCALE_CLIENT_ID=<client-id> TAILSCALE_CLIENT_SECRET=<client-secret> ./scripts/bootstrap-kind.sh
 ```
 
 ## Repository Layout
