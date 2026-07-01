@@ -26,6 +26,11 @@ For prerequisites, `.env` values, Windows notes, troubleshooting, and uninstall
 steps, see
 [docs/guide/installation.md](docs/guide/installation.md).
 
+Before you start, have:
+
+- a domain managed by Cloudflare, such as `your-domain.com`
+- a Tailscale account where you can create tags and OAuth credentials
+
 Install the CLI on macOS or Linux:
 
 ```sh
