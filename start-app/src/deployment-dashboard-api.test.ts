@@ -139,7 +139,9 @@ describe("dashboard deployment API", () => {
     const body = z.object({ error: z.string() }).parse(await response.json())
 
     expect(response.status).toBe(409)
-    expect(body.error).toBe("internet gateway not found")
+    expect(body.error).toBe(
+      "internet gateway not found; run: cd deploy-system && ./deploy-internet-gateway.sh"
+    )
     expect(mockedExecFile).toHaveBeenCalledTimes(1)
     expect(mockedExecFile).toHaveBeenCalledWith("kubectl", [
       "get",

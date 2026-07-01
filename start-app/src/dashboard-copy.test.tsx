@@ -10,6 +10,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { DeploymentDashboard } from "./components/dashboard/deployment-dashboard"
+import type { Deployment } from "./components/dashboard/types"
 
 afterEach(() => {
   cleanup()
@@ -30,19 +31,13 @@ describe("dashboard surface", () => {
     render(
       <DeploymentDashboard
         initialDeployments={[
-          {
+          deployment({
             serviceName: "k8s",
             host: "k8s.example.com",
             image: "cluster-managed",
-            namespace: "ship-services",
             port: 0,
-            exposure: "tailscale",
-            tailscaleOnly: true,
-            dryRun: false,
-            commands: [],
-            manifest: "",
             containerLogs: "listening",
-          },
+          }),
         ]}
       />
     )
@@ -62,19 +57,10 @@ describe("dashboard surface", () => {
         return new Response(
           JSON.stringify({
             deployments: [
-              {
+              deployment({
                 serviceName: "late-client-fetch",
                 host: "late.example.com",
-                image: "ship/late:latest",
-                namespace: "ship-services",
-                port: 3000,
-                exposure: "tailscale",
-                tailscaleOnly: true,
-                dryRun: false,
-                commands: [],
-                manifest: "",
-                containerLogs: "",
-              },
+              }),
             ],
           }),
           { headers: { "Content-Type": "application/json" } }
@@ -97,20 +83,14 @@ describe("dashboard surface", () => {
         return new Response(
           JSON.stringify({
             deployments: [
-              {
+              deployment({
                 serviceName: "demo",
                 host: "demo.example.com",
-                image: "ship/demo:latest",
-                namespace: "ship-services",
-                port: 3000,
-                exposure: "tailscale",
-                tailscaleOnly: true,
-                dryRun: false,
                 commands: ["kubectl apply -f -"],
                 manifest: "kind: Deployment",
                 containerLogs: "listening on 3000",
                 createdAt: "2026-06-30T00:00:00Z",
-              },
+              }),
             ],
           }),
           { headers: { "Content-Type": "application/json" } }
@@ -146,20 +126,40 @@ describe("dashboard surface", () => {
     expect(renderedTextIncludes("kind: Deployment")).toBe(true)
   })
 
-  it("records exposure updates in the network log", async () => {
-    const initialDeployment = {
-      serviceName: "demo",
-      host: "demo.example.com",
-      image: "ship/demo:latest",
-      namespace: "ship-services",
-      port: 3000,
-      exposure: "tailscale" as const,
-      tailscaleOnly: true,
-      dryRun: false,
+  it("keeps dashboard API traffic out of deployment network panels", () => {
+    window.history.replaceState(null, "", "/")
+    render(
+      <DeploymentDashboard
+        initialDeployments={[
+          deployment({
+            serviceName: "k8s",
+            host: "k8s.example.com",
+            image: "cluster-managed",
+            port: 0,
+          }),
+          deployment({
+            serviceName: "nitro-app",
+            host: "nitro-app.example.com",
+          }),
+        ]}
+      />
+    )
+
+    const k8sCard = cardTextForService("k8s")
+    const nitroCard = cardTextForService("nitro-app")
+
+    expect(k8sCard).toContain("GET https://k8s.example.com")
+    expect(k8sCard).not.toContain("/api/deployments")
+    expect(nitroCard).toContain("GET https://nitro-app.example.com")
+    expect(nitroCard).not.toContain("/api/deployments")
+  })
+
+  it("updates exposure without copying dashboard API traffic into the card log", async () => {
+    const initialDeployment = deployment({
       commands: ["kubectl apply -f -"],
       manifest: "kind: Deployment",
       containerLogs: "listening on 3000",
-    }
+    })
     const fetchMock = vi.fn(
       async (_input: RequestInfo | URL, init?: RequestInit) => {
         if (init?.method === "PATCH") {
@@ -195,7 +195,9 @@ describe("dashboard surface", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expose to internet" }))
 
     await waitFor(() => {
-      expect(renderedTextIncludes("PATCH /api/deployments")).toBe(true)
+      expect(
+        screen.queryByRole("button", { name: "Expose to internet" })
+      ).toBeNull()
     })
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/deployments",
@@ -208,9 +210,7 @@ describe("dashboard surface", () => {
         }),
       })
     )
-    expect(
-      screen.queryByRole("button", { name: "Expose to internet" })
-    ).toBeNull()
+    expect(cardTextForService("demo")).not.toContain("/api/deployments")
   })
 })
 
@@ -222,6 +222,29 @@ async function renderDashboardAt(path: string): Promise<void> {
 
 function renderedTextIncludes(text: string): boolean {
   return document.body.textContent.includes(text)
+}
+
+function deployment(overrides: Partial<Deployment>): Deployment {
+  return {
+    serviceName: "demo",
+    host: "demo.example.com",
+    image: "ship/demo:latest",
+    namespace: "ship-services",
+    port: 3000,
+    exposure: "tailscale",
+    tailscaleOnly: true,
+    dryRun: false,
+    commands: [],
+    manifest: "",
+    containerLogs: "",
+    ...overrides,
+  }
+}
+
+function cardTextForService(serviceName: string): string {
+  const card = screen.getByText(serviceName).closest("[data-slot='card']")
+  expect(card).not.toBeNull()
+  return card?.textContent ?? ""
 }
 
 function summaryCardText(label: string): string {

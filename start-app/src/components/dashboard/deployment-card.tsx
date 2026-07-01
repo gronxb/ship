@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { z } from "zod"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -17,16 +18,14 @@ import type { Deployment } from "./types"
 
 type DashboardTab = "network" | "terminal" | "details"
 
+const deploymentApiError = z.object({ error: z.string() })
+
 export function DeploymentCard({
   deployment,
   onExposureChanged,
-  onRequest,
-  requestLog,
 }: {
   readonly deployment: Deployment
   readonly onExposureChanged: () => Promise<void>
-  readonly onRequest: (request: string) => void
-  readonly requestLog: readonly string[]
 }) {
   const [activeTab, setActiveTab] = useState<DashboardTab>("network")
   const [updatingExposure, setUpdatingExposure] = useState(false)
@@ -46,7 +45,6 @@ export function DeploymentCard({
   async function exposeToInternet(): Promise<void> {
     setUpdatingExposure(true)
     setExposureError("")
-    onRequest("PATCH /api/deployments")
     try {
       const response = await fetch("/api/deployments", {
         method: "PATCH",
@@ -58,7 +56,7 @@ export function DeploymentCard({
         }),
       })
       if (!response.ok) {
-        throw new Error(await response.text())
+        throw new Error(await responseErrorMessage(response))
       }
       await onExposureChanged()
     } catch (caught) {
@@ -130,13 +128,7 @@ export function DeploymentCard({
             </TabsTrigger>
           </TabsList>
           <TabsContent value="network">
-            <LogPanel
-              lines={[
-                `GET https://${deployment.host}`,
-                "GET /api/deployments",
-                ...requestLog,
-              ]}
-            />
+            <LogPanel lines={[`GET https://${deployment.host}`]} />
           </TabsContent>
           <TabsContent value="terminal">
             <LogPanel
@@ -153,6 +145,22 @@ export function DeploymentCard({
       </CardContent>
     </Card>
   )
+}
+
+async function responseErrorMessage(response: Response): Promise<string> {
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch (caught) {
+    if (caught instanceof SyntaxError) {
+      return response.statusText || "Request failed"
+    }
+    throw caught
+  }
+  const parsed = deploymentApiError.safeParse(body)
+  return parsed.success
+    ? parsed.data.error
+    : response.statusText || "Request failed"
 }
 
 function ExposureBadge({ deployment }: { readonly deployment: Deployment }) {

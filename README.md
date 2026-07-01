@@ -158,13 +158,17 @@ Deploy the dashboard after the Gateway:
 
 ### Internet Mode
 
-Internet exposure requires a real public LoadBalancer:
+Internet exposure setup is one command for everything Ship can automate:
 
 ```sh
-cd deploy-system
-./render-internet-gateway.sh | kubectl apply -f -
-kubectl get gateway -n ship-system ship-internet
+cd deploy-system && ./deploy-internet-gateway.sh
 ```
+
+The script creates the internet Gateway resources and prints only the remaining
+manual actions: public LoadBalancer address, DNS records, and wildcard TLS
+Secret/cert-manager setup. Local kind clusters usually create the Gateway but
+do not provide a real public LoadBalancer address; use Tailscale mode there, or
+run this on a cluster with public LoadBalancer support.
 
 Then opt a service into public routing:
 

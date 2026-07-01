@@ -53,13 +53,13 @@ manual dns: create *.$SHIP_DOMAIN as DNS-only CNAME/A record to <gateway-address
 
 ## Internet Gateway
 
-`internet-gateway.yaml` is optional because local kind clusters usually cannot
-assign a public LoadBalancer address.
+Run one command before using the dashboard's "Expose to internet" action or
+`ship --exposure internet`:
 
 ```sh
-./render-internet-gateway.sh | kubectl apply -f -
-kubectl get gateway -n "$SHIP_GATEWAY_NAMESPACE" "$SHIP_INTERNET_GATEWAY_NAME"
+./deploy-internet-gateway.sh
 ```
 
-After the Gateway has an address, create host-specific DNS records for services
-you expose publicly.
+The script applies everything Ship can create and prints the remaining manual
+actions. Those are environment-owned: public LoadBalancer address, host-specific
+DNS records, and the wildcard TLS Secret/cert-manager DNS issuer.

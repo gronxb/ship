@@ -142,8 +142,6 @@ export function DeploymentDashboard({
                 deployment={deployment}
                 key={deployment.host}
                 onExposureChanged={refreshDeployments}
-                onRequest={recordRequest}
-                requestLog={requestLog}
               />
             ))
           )}

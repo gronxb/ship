@@ -13,6 +13,9 @@ const exposureUpdate = z.object({
   exposure: z.literal("internet"),
 })
 
+const internetGatewaySetupCommand =
+  "cd deploy-system && ./deploy-internet-gateway.sh"
+
 export async function listDeployments(): Promise<Response> {
   return Response.json({ deployments: await readMergedDeployments() })
 }
@@ -72,7 +75,9 @@ export async function changeDeploymentExposure(
   } catch (caught) {
     if (caught instanceof Error) {
       return Response.json(
-        { error: "internet gateway not found" },
+        {
+          error: `internet gateway not found; run: ${internetGatewaySetupCommand}`,
+        },
         { status: 409 }
       )
     }
