@@ -65,7 +65,7 @@ Get the values:
   Create Token -> Edit zone DNS. Use `Zone:DNS:Edit` and `Zone:Zone:Read`,
   scoped to the zone for `SHIP_DOMAIN`.
 - `TAILSCALE_CLIENT_ID` / `TAILSCALE_CLIENT_SECRET`: in Tailscale, open
-  Access controls and make sure `tagOwners` contains this:
+  Access controls -> JSON Editor, then paste this into `tagOwners`:
 
   ```json
   "tagOwners": {
