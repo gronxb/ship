@@ -50,6 +50,10 @@ describe("dashboard deployment API", () => {
       }),
     ])
     mockedExecFile.mockResolvedValueOnce({
+      stdout: "gateway.networking.k8s.io/ship-internet",
+      stderr: "",
+    })
+    mockedExecFile.mockResolvedValueOnce({
       stdout: "",
       stderr: "",
     })
@@ -78,6 +82,15 @@ describe("dashboard deployment API", () => {
     expect(response.status).toBe(200)
     expect(body.deployment.serviceName).toBe("demo")
     expect(mockedExecFile).toHaveBeenCalledWith("kubectl", [
+      "get",
+      "gateway",
+      "ship-internet",
+      "-n",
+      "ship-system",
+      "-o",
+      "name",
+    ])
+    expect(mockedExecFile).toHaveBeenCalledWith("kubectl", [
       "patch",
       "httproute",
       "demo",
@@ -96,6 +109,46 @@ describe("dashboard deployment API", () => {
       "--type=merge",
       "-p",
       expect.stringContaining('"name":"ship-internet"'),
+    ])
+  })
+
+  it("rejects internet exposure when the internet gateway is missing", async () => {
+    const { execFileAsync } = await import("./lib/deployment-command")
+    const { readMergedDeployments } = await import("./lib/deployment-state")
+    const mockedExecFile = vi.mocked(execFileAsync)
+    vi.mocked(readMergedDeployments).mockResolvedValueOnce([
+      deploymentFixture({
+        namespace: "ship-services",
+        serviceName: "demo",
+        tailscaleOnly: true,
+      }),
+    ])
+    mockedExecFile.mockRejectedValueOnce(new Error("gateway not found"))
+
+    const response = await changeDeploymentExposure(
+      new Request("http://ship.local/api/deployments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceName: "demo",
+          namespace: "ship-services",
+          exposure: "internet",
+        }),
+      })
+    )
+    const body = z.object({ error: z.string() }).parse(await response.json())
+
+    expect(response.status).toBe(409)
+    expect(body.error).toBe("internet gateway not found")
+    expect(mockedExecFile).toHaveBeenCalledTimes(1)
+    expect(mockedExecFile).toHaveBeenCalledWith("kubectl", [
+      "get",
+      "gateway",
+      "ship-internet",
+      "-n",
+      "ship-system",
+      "-o",
+      "name",
     ])
   })
 

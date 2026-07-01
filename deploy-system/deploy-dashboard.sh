@@ -40,7 +40,7 @@ metadata:
 rules:
   - apiGroups: ["gateway.networking.k8s.io"]
     resources: ["httproutes"]
-    verbs: ["get", "list"]
+    verbs: ["get", "list", "patch"]
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list"]

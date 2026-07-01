@@ -97,7 +97,7 @@ YAML
     printf 'deployment %s rolled out\n' "$3"
     ;;
   'apply -f')
-    cat >/dev/null
+    cat >> "$SHIP_TEST_LOG"
     printf 'applied\n'
     ;;
   *)
@@ -114,6 +114,41 @@ SH
 cat > "$fakebin/kind" <<'SH'
 #!/bin/sh
 printf 'kind %s\n' "$*" >> "$SHIP_TEST_LOG"
+SH
+
+cat > "$fakebin/go" <<'SH'
+#!/bin/sh
+printf 'go %s\n' "$*" >> "$SHIP_TEST_LOG"
+case "$1" in
+  build)
+    out=""
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        -o)
+          out="$2"
+          shift 2
+          ;;
+        *)
+          shift
+          ;;
+      esac
+    done
+    if [ -z "$out" ]; then
+      printf 'fake go build requires -o\n' >&2
+      exit 2
+    fi
+    mkdir -p "$(dirname "$out")"
+    cat > "$out" <<'BIN'
+#!/bin/sh
+printf 'usage: ship --service <name> [--cwd DIR] [--port PORT] [--dry-run] [--json]\n'
+BIN
+    chmod +x "$out"
+    ;;
+  *)
+    printf 'fake go only supports build\n' >&2
+    exit 2
+    ;;
+esac
 SH
 
 cat > "$fakebin/ship" <<'SH'
@@ -152,6 +187,7 @@ fi
 grep -Fq 'docker build' "$log"
 grep -Fq 'kind load docker-image --name ship ship/k8s:' "$log"
 grep -Fq 'kubectl rollout status deployment/k8s -n ship-services --timeout=180s' "$log"
+grep -Fq 'verbs: ["get", "list", "patch"]' "$log"
 grep -Fq 'secret env SHIP_DASHBOARD_HOST=k8s.example.com' "$log"
 grep -Fq 'usage: ship' "$work/help"
 

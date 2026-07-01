@@ -59,6 +59,26 @@ export async function changeDeploymentExposure(
     })
   }
 
+  try {
+    await execFileAsync("kubectl", [
+      "get",
+      "gateway",
+      internetGatewayName,
+      "-n",
+      gatewayNamespace,
+      "-o",
+      "name",
+    ])
+  } catch (caught) {
+    if (caught instanceof Error) {
+      return Response.json(
+        { error: "internet gateway not found" },
+        { status: 409 }
+      )
+    }
+    throw caught
+  }
+
   await execFileAsync("kubectl", [
     "patch",
     "httproute",
