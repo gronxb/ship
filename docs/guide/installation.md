@@ -184,7 +184,8 @@ cluster named ship first.
 - Kubernetes Gateway API
 - Envoy Gateway
 - Tailscale Kubernetes Operator for the default private Gateway
-- cert-manager and a wildcard certificate issuer for custom-domain Gateway TLS
+- Cloudflare DNS credentials for DNS automation and Let's Encrypt DNS-01
+  wildcard Gateway TLS
 
 The installer expects the current `kubectl` context to be the cluster you want
 Ship to use. For local kind, use a cluster named `ship`, which creates the
@@ -226,9 +227,12 @@ deploy-system/deploy-domain.sh
 deploy-system/deploy-dashboard.sh
 ```
 
-That applies the default Tailscale Gateway, creates Cloudflare DNS when
-`CLOUDFLARE_API_TOKEN` is set, and deploys the dashboard as the normal Ship
-service named `k8s`.
+That installs cert-manager with Gateway API support, creates a Let's Encrypt
+Cloudflare DNS-01 issuer, configures public recursive resolvers for DNS-01
+self-checks, applies the default Tailscale Gateway, waits for the wildcard
+certificate used by `k8s.$SHIP_DOMAIN` and later `ship --service` routes,
+creates Cloudflare DNS when `CLOUDFLARE_API_TOKEN` is set, and deploys the
+dashboard as the normal Ship service named `k8s`.
 
 The values you normally fill are:
 
@@ -237,6 +241,8 @@ SHIP_DOMAIN=mydomain.com
 CLOUDFLARE_API_TOKEN=
 TAILSCALE_CLIENT_ID=
 TAILSCALE_CLIENT_SECRET=
+# Optional; defaults to admin@$SHIP_DOMAIN.
+# SHIP_ACME_EMAIL=admin@mydomain.com
 # Optional dashboard service name.
 # Defaults to k8s, which gives you k8s.your-domain.com.
 # SHIP_DASHBOARD_SERVICE=ops

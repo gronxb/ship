@@ -12,8 +12,13 @@ $EDITOR ../.env
 
 `./deploy-domain.sh` reads `../.env` and `~/.config/ship/config.env`, renders the
 `example.com` Gateway template with your domain, applies the Tailscale Gateway,
-then creates the Cloudflare wildcard DNS record when `SHIP_DNS=cloudflare` and
+installs cert-manager with Gateway API support, creates a Let's Encrypt
+Cloudflare DNS-01 ClusterIssuer, configures public recursive resolvers for the
+DNS-01 self-check, waits for the wildcard TLS certificate, then creates the
+Cloudflare wildcard DNS record when `SHIP_DNS=cloudflare` and
 `CLOUDFLARE_API_TOKEN` are set. In manual mode it prints the record to create.
+Self-signed certificates are disabled by default; use `SHIP_TLS_CERT_FILE` and
+`SHIP_TLS_KEY_FILE` for a custom wildcard certificate.
 
 `./deploy-dashboard.sh` applies the minimal dashboard RBAC and runs `ship` against
 `../start-app`, so `https://k8s.$SHIP_DOMAIN` is backed by an in-cluster
@@ -56,6 +61,10 @@ Cloudflare DNS mode:
 ```sh
 SHIP_DNS=cloudflare CLOUDFLARE_API_TOKEN=<token> ./deploy-domain.sh
 ```
+
+The same wildcard certificate is used by the default dashboard service
+(`k8s.$SHIP_DOMAIN`) and later `ship --service ...` routes under
+`*.$SHIP_DOMAIN`.
 
 ## Internet Exposure
 

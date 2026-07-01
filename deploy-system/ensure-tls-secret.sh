@@ -6,7 +6,27 @@ cd "$(dirname "$0")"
 
 secret="${SHIP_TLS_SECRET:-wildcard-$(printf '%s' "$SHIP_DOMAIN" | tr . -)-tls}"
 
+base64_decode="base64 --decode"
+if ! base64 --help 2>&1 | grep -q -- '--decode'; then
+  base64_decode="base64 -D"
+fi
+
 if kubectl get secret "$secret" -n "$SHIP_GATEWAY_NAMESPACE" >/dev/null 2>&1; then
+  if command -v openssl >/dev/null 2>&1; then
+    tmp="$(mktemp -d)"
+    cleanup_existing() {
+      rm -rf "$tmp"
+    }
+    trap cleanup_existing EXIT
+    kubectl get secret "$secret" -n "$SHIP_GATEWAY_NAMESPACE" -o jsonpath='{.data.tls\.crt}' | $base64_decode > "$tmp/tls.crt"
+    subject="$(openssl x509 -in "$tmp/tls.crt" -noout -subject -nameopt RFC2253 2>/dev/null | sed 's/^subject=//')"
+    issuer="$(openssl x509 -in "$tmp/tls.crt" -noout -issuer -nameopt RFC2253 2>/dev/null | sed 's/^issuer=//')"
+    if [ -n "$subject" ] && [ "$subject" = "$issuer" ]; then
+      kubectl delete secret "$secret" -n "$SHIP_GATEWAY_NAMESPACE"
+      printf 'ok: removed self-signed TLS secret %s/%s; cert-manager will issue a trusted wildcard cert\n' "$SHIP_GATEWAY_NAMESPACE" "$secret"
+      exit 0
+    fi
+  fi
   printf 'ok: TLS secret %s/%s exists\n' "$SHIP_GATEWAY_NAMESPACE" "$secret"
   exit 0
 fi
@@ -31,6 +51,19 @@ if [ -n "${SHIP_TLS_CERT_FILE:-}" ] || [ -n "${SHIP_TLS_KEY_FILE:-}" ]; then
   apply_secret "$SHIP_TLS_CERT_FILE" "$SHIP_TLS_KEY_FILE"
   printf 'ok: TLS secret %s/%s applied from cert files\n' "$SHIP_GATEWAY_NAMESPACE" "$secret"
   exit 0
+fi
+
+if [ "${SHIP_TLS_ALLOW_SELF_SIGNED:-}" != "1" ]; then
+  if kubectl get clusterissuer letsencrypt-dns01 >/dev/null 2>&1; then
+    printf 'ok: TLS secret %s/%s will be issued by cert-manager\n' "$SHIP_GATEWAY_NAMESPACE" "$secret"
+    exit 0
+  fi
+  cat >&2 <<'EOF'
+missing trusted wildcard TLS issuer.
+Run deploy-system/ensure-cert-manager.sh, or set SHIP_TLS_CERT_FILE and SHIP_TLS_KEY_FILE.
+Self-signed certificates are disabled by default; set SHIP_TLS_ALLOW_SELF_SIGNED=1 only for local experiments.
+EOF
+  exit 2
 fi
 
 if ! command -v openssl >/dev/null 2>&1; then

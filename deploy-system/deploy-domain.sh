@@ -17,8 +17,10 @@ EOF
 fi
 
 kubectl create namespace "$SHIP_GATEWAY_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+./ensure-cert-manager.sh
 ./ensure-tls-secret.sh
 ./render.sh | kubectl apply -f -
+./wait-tls-certificate.sh
 
 address=""
 for _ in $(seq 1 60); do

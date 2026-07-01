@@ -33,6 +33,16 @@ env_ship_dashboard_service_set=${SHIP_DASHBOARD_SERVICE+x}
 env_ship_dashboard_service=${SHIP_DASHBOARD_SERVICE-}
 env_ship_dashboard_service_account_set=${SHIP_DASHBOARD_SERVICE_ACCOUNT+x}
 env_ship_dashboard_service_account=${SHIP_DASHBOARD_SERVICE_ACCOUNT-}
+env_ship_acme_email_set=${SHIP_ACME_EMAIL+x}
+env_ship_acme_email=${SHIP_ACME_EMAIL-}
+env_cloudflare_api_token_set=${CLOUDFLARE_API_TOKEN+x}
+env_cloudflare_api_token=${CLOUDFLARE_API_TOKEN-}
+env_cf_api_token_set=${CF_API_TOKEN+x}
+env_cf_api_token=${CF_API_TOKEN-}
+env_cloudflare_zone_id_set=${CLOUDFLARE_ZONE_ID+x}
+env_cloudflare_zone_id=${CLOUDFLARE_ZONE_ID-}
+env_cf_zone_id_set=${CF_ZONE_ID+x}
+env_cf_zone_id=${CF_ZONE_ID-}
 
 if [ -f "../.env" ]; then
   . "../.env"
@@ -87,6 +97,21 @@ fi
 if [ -n "$env_ship_dashboard_service_account_set" ]; then
   SHIP_DASHBOARD_SERVICE_ACCOUNT=$env_ship_dashboard_service_account
 fi
+if [ -n "$env_ship_acme_email_set" ]; then
+  SHIP_ACME_EMAIL=$env_ship_acme_email
+fi
+if [ -n "$env_cloudflare_api_token_set" ]; then
+  CLOUDFLARE_API_TOKEN=$env_cloudflare_api_token
+fi
+if [ -n "$env_cf_api_token_set" ]; then
+  CF_API_TOKEN=$env_cf_api_token
+fi
+if [ -n "$env_cloudflare_zone_id_set" ]; then
+  CLOUDFLARE_ZONE_ID=$env_cloudflare_zone_id
+fi
+if [ -n "$env_cf_zone_id_set" ]; then
+  CF_ZONE_ID=$env_cf_zone_id
+fi
 
 : "${SHIP_DOMAIN:=example.com}"
 : "${SHIP_NAMESPACE:=ship-services}"
@@ -124,4 +149,19 @@ if [ -n "${SHIP_DASHBOARD_SERVICE:-}" ]; then
 fi
 if [ -n "${SHIP_DASHBOARD_SERVICE_ACCOUNT:-}" ]; then
   export SHIP_DASHBOARD_SERVICE_ACCOUNT
+fi
+if [ -n "${SHIP_ACME_EMAIL:-}" ]; then
+  export SHIP_ACME_EMAIL
+fi
+if [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then
+  export CLOUDFLARE_API_TOKEN
+fi
+if [ -n "${CF_API_TOKEN:-}" ]; then
+  export CF_API_TOKEN
+fi
+if [ -n "${CLOUDFLARE_ZONE_ID:-}" ]; then
+  export CLOUDFLARE_ZONE_ID
+fi
+if [ -n "${CF_ZONE_ID:-}" ]; then
+  export CF_ZONE_ID
 fi

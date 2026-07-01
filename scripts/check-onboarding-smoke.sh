@@ -202,7 +202,16 @@ grep -Fq 'SHIP_DNS=cloudflare' "$cloudflare_home/.config/ship/config.env"
 grep -Fq 'SHIP_DASHBOARD_SERVICE=ops' "$cloudflare_home/.config/ship/config.env"
 grep -Fq 'kind create cluster --name ship' "$cloudflare_log"
 grep -Fq 'helm upgrade --install tailscale-operator tailscale/tailscale-operator' "$cloudflare_log"
-grep -Fq 'create secret tls wildcard-example-com-tls' "$cloudflare_log"
+grep -Fq 'helm upgrade --install cert-manager oci://quay.io/jetstack/charts/cert-manager' "$cloudflare_log"
+grep -Fq -- '--set config.enableGatewayAPI=true' "$cloudflare_log"
+grep -Fq -- '--dns01-recursive-nameservers=1.1.1.1:53\,8.8.8.8:53' "$cloudflare_log"
+grep -Fq 'create secret generic cloudflare-api-token-secret' "$cloudflare_log"
+grep -Fq 'ClusterIssuer' "$cloudflare_log"
+grep -Fq 'wait --for=condition=Ready certificate/wildcard-example-com-tls -n ship-system --timeout=10m' "$cloudflare_log"
+if grep -Fq 'create secret tls wildcard-example-com-tls' "$cloudflare_log"; then
+  printf 'ship install must not create a self-signed wildcard TLS secret by default\n' >&2
+  exit 1
+fi
 grep -Fq 'dry-run: *.example.com CNAME ship-tailscale.tailnet.test proxied=false' "$work/cloudflare-stdout"
 grep -Fq 'docker build -f' "$cloudflare_log"
 grep -Fq -- '-t ship/ops:' "$cloudflare_log"
@@ -245,7 +254,10 @@ grep -Fq 'ship env REGISTRY=good.registry.test' "$log"
 grep -Fq -- '--kind-cluster good-kind' "$log"
 
 strict_home="$work/strict-home"
+strict_root="$work/strict-root"
 mkdir -p "$strict_home/.config/ship"
+mkdir -p "$strict_root"
+cp -R "$root/deploy-system" "$strict_root/deploy-system"
 cat > "$strict_home/.config/ship/config.env" <<'EOF'
 SHIP_DOMAIN=example.com
 SHIP_DNS=auto
@@ -258,7 +270,7 @@ HOME="$strict_home" \
 WRANGLER="$work/missing-wrangler" \
 SHIP_TEST_LOG="$log" \
 SHIP_DNS=cloudflare \
-"$root/deploy-system/deploy-domain.sh" \
+"$strict_root/deploy-system/deploy-domain.sh" \
   > "$work/strict-stdout" \
   2> "$work/strict-stderr"
 strict_status=$?
@@ -270,6 +282,10 @@ if [ "$strict_status" -eq 0 ]; then
   printf 'expected SHIP_DNS=cloudflare to override config SHIP_DNS=auto\n' >&2
   exit 1
 fi
-grep -Fq 'missing CLOUDFLARE_API_TOKEN with Zone DNS Edit' "$work/strict-stderr"
+if ! grep -Fq "missing CLOUDFLARE_API_TOKEN for Let's Encrypt wildcard TLS" "$work/strict-stderr"; then
+  cat "$work/strict-stdout"
+  cat "$work/strict-stderr" >&2
+  exit 1
+fi
 
 printf 'onboarding-smoke: ok\n'
