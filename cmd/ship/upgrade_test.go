@@ -162,7 +162,7 @@ func TestRunUpgradeYesDefaultsToLatestReleaseTag(t *testing.T) {
 
 func writeUpgradeSource(t *testing.T, source string, logPath string) {
 	t.Helper()
-	writeFile(t, filepath.Join(source, "go.mod"), "module example.com/fakeship\n\ngo 1.23\n")
+	writeFile(t, filepath.Join(source, "go.mod"), "module example.com/fakeship\n\ngo 1.22\n")
 	writeFile(t, filepath.Join(source, "cmd", "ship", "main.go"), "package main\n\nimport \"fmt\"\n\nvar version = \"dev\"\n\nfunc main() { fmt.Println(\"ship \" + version) }\n")
 	writeExecutable(t, filepath.Join(source, "deploy-system", "deploy-domain.sh"), "deploy-domain\n", logPath)
 	writeExecutable(t, filepath.Join(source, "deploy-system", "deploy-dashboard.sh"), "deploy-dashboard\n", logPath)
