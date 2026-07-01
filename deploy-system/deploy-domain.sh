@@ -16,6 +16,8 @@ EOF
   exit 1
 fi
 
+kubectl create namespace "$SHIP_GATEWAY_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+./ensure-tls-secret.sh
 ./render.sh | kubectl apply -f -
 
 address=""

@@ -82,6 +82,7 @@ YAML
     printf 'apiVersion: v1\nkind: Namespace\nmetadata:\n  name: %s\n' "$3"
     ;;
   'create secret')
+    printf 'create secret %s %s\n' "$3" "$4" >> "$SHIP_TEST_LOG"
     env_file=""
     for arg in "$@"; do
       case "$arg" in
@@ -93,6 +94,9 @@ YAML
       sed 's/^/secret env /' "$env_file" >> "$SHIP_TEST_LOG"
     fi
     printf 'apiVersion: v1\nkind: Secret\nmetadata:\n  name: %s\n' "$4"
+    ;;
+  'get secret')
+    exit 1
     ;;
   'rollout status')
     printf 'deployment %s rolled out\n' "$3"
@@ -167,7 +171,7 @@ if grep -iq 'cloudflare' "$work/stdout" "$work/stderr"; then
   printf 'default onboarding must not mention Cloudflare\n' >&2
   exit 1
 fi
-grep -Fq 'usage: ship' "$work/help"
+grep -Fq 'Usage:' "$work/help"
 
 cloudflare_home="$work/cloudflare-home"
 mkdir -p "$cloudflare_home"
@@ -198,6 +202,7 @@ grep -Fq 'SHIP_DNS=cloudflare' "$cloudflare_home/.config/ship/config.env"
 grep -Fq 'SHIP_DASHBOARD_SERVICE=ops' "$cloudflare_home/.config/ship/config.env"
 grep -Fq 'kind create cluster --name ship' "$cloudflare_log"
 grep -Fq 'helm upgrade --install tailscale-operator tailscale/tailscale-operator' "$cloudflare_log"
+grep -Fq 'create secret tls wildcard-example-com-tls' "$cloudflare_log"
 grep -Fq 'dry-run: *.example.com CNAME ship-tailscale.tailnet.test proxied=false' "$work/cloudflare-stdout"
 grep -Fq 'docker build -f' "$cloudflare_log"
 grep -Fq -- '-t ship/ops:' "$cloudflare_log"
