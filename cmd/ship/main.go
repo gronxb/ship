@@ -31,10 +31,12 @@ func run(ctx context.Context, args []string) error {
 			fmt.Print(`Usage:
   ship [options]
   ship install [options]
+  ship upgrade [options]
   ship uninstall [options]
 
 Commands:
   install     bootstrap ship infrastructure
+  upgrade     update ship CLI and optionally infrastructure
   uninstall   remove ship infrastructure
 
 Options:
@@ -49,6 +51,8 @@ Options:
 			return nil
 		case "install":
 			return runInstall(ctx, args[1:])
+		case "upgrade":
+			return runUpgrade(ctx, args[1:])
 		case "uninstall":
 			return runUninstall(ctx, args[1:])
 		}
