@@ -1,7 +1,7 @@
 # Ship
 
-Ship turns any local project with a `Dockerfile` into a Kubernetes service at
-`<service>.<your-domain>`. It is built for small self-hosted clusters, Mac mini
+Ship turns any local project with a `Dockerfile` into a Kubernetes service under
+`*.your-domain.com`. It is built for small self-hosted clusters, Mac mini
 homelabs, and teams that want a thin deployment path without introducing a full
 PaaS.
 
@@ -33,8 +33,14 @@ curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Fill `.env` with your domain, Cloudflare token, and Tailscale OAuth credentials,
-then run:
+Start from `.env.example`, then fill in your domain, Cloudflare token, and
+Tailscale OAuth credentials:
+
+```sh
+cp .env.example .env
+```
+
+Then run:
 
 ```sh
 ship install
@@ -47,7 +53,7 @@ cd /path/to/app
 ship --service demo
 ```
 
-Ship creates `https://demo.<your-domain>`.
+Ship creates `https://demo.your-domain.com`.
 
 ## Exposure Model
 
