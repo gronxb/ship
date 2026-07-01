@@ -28,6 +28,7 @@ require_file CODE_OF_CONDUCT.md
 require_file CHANGELOG.md
 require_file Makefile
 require_file .github/workflows/ci.yml
+require_file .github/workflows/release.yml
 require_file .github/dependabot.yml
 require_file .github/PULL_REQUEST_TEMPLATE.md
 require_file .github/ISSUE_TEMPLATE/bug_report.yml
@@ -59,8 +60,12 @@ require_text deploy-system/README.md "./deploy-dashboard.sh"
 require_text deploy-system/README.md "Default DNS mode"
 require_text deploy-system/README.md "Cloudflare DNS mode"
 require_text install.sh "ship install"
+require_text install.sh "main.version"
 require_text cmd/ship/main.go "install"
 require_text cmd/ship/main.go "uninstall"
+require_text .github/workflows/release.yml "gh release create"
+require_text .github/workflows/release.yml "main.version"
+require_text .github/workflows/release.yml "contents: write"
 require_text scripts/bootstrap-kind.sh "kind create cluster"
 require_text scripts/bootstrap-kind.sh "envoyproxy/gateway-helm"
 require_text scripts/bootstrap-kind.sh "tailscale/tailscale-operator"

@@ -34,6 +34,20 @@ func runUpgrade(ctx context.Context, args []string) error {
 			return err
 		}
 	}
+	config := loadConfig()
+	if os.Getenv("SHIP_REF") == "" && config["SHIP_REF"] == "" {
+		previousRef, hadPreviousRef := os.LookupEnv("SHIP_REF")
+		if err := os.Setenv("SHIP_REF", "latest"); err != nil {
+			return err
+		}
+		defer func() {
+			if hadPreviousRef {
+				_ = os.Setenv("SHIP_REF", previousRef)
+			} else {
+				_ = os.Unsetenv("SHIP_REF")
+			}
+		}()
+	}
 
 	source, cleanup, err := shipSource(ctx)
 	if err != nil {
@@ -51,9 +65,17 @@ func runUpgrade(ctx context.Context, args []string) error {
 		fmt.Println("skipped: ship infrastructure update")
 		return nil
 	}
+	previousBin, hadPreviousBin := os.LookupEnv("SHIP_BIN")
 	if err := os.Setenv("SHIP_BIN", binPath); err != nil {
 		return err
 	}
+	defer func() {
+		if hadPreviousBin {
+			_ = os.Setenv("SHIP_BIN", previousBin)
+		} else {
+			_ = os.Unsetenv("SHIP_BIN")
+		}
+	}()
 	if err := updateInfrastructure(ctx, source); err != nil {
 		return err
 	}
@@ -74,7 +96,14 @@ func upgradeCLI(ctx context.Context, source string) (string, error) {
 		return "", err
 	}
 	config := loadConfig()
-	ldflags := "-X main.sourceRepo=" + configDefault(config, "SHIP_REPO", sourceRepo) + " -X main.sourceRef=" + configDefault(config, "SHIP_REF", sourceRef)
+	ref := os.Getenv("SHIP_SOURCE_REF")
+	if ref == "" {
+		ref = configDefault(config, "SHIP_REF", sourceRef)
+	}
+	if ref == "latest" {
+		ref = version
+	}
+	ldflags := "-X main.version=" + ref + " -X main.sourceRepo=" + configDefault(config, "SHIP_REPO", sourceRepo) + " -X main.sourceRef=" + ref
 	cmd := exec.CommandContext(ctx, "go", "build", "-ldflags", ldflags, "-o", binPath, "./cmd/ship")
 	cmd.Dir = source
 	cmd.Stdout = os.Stdout

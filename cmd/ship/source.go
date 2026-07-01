@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,10 +10,14 @@ import (
 )
 
 var sourceRepo = "gronxb/ship"
-var sourceRef = "main"
+var sourceRef = "latest"
 
 func shipSource(ctx context.Context) (string, func(), error) {
 	if source := os.Getenv("SHIP_SOURCE_DIR"); source != "" {
+		config := loadConfig()
+		if ref := configDefault(config, "SHIP_REF", ""); ref != "" {
+			_ = os.Setenv("SHIP_SOURCE_REF", ref)
+		}
 		return source, func() {}, nil
 	}
 	dir, err := os.MkdirTemp("", "ship-source-*")
@@ -23,6 +28,18 @@ func shipSource(ctx context.Context) (string, func(), error) {
 	config := loadConfig()
 	repo := configDefault(config, "SHIP_REPO", sourceRepo)
 	ref := configDefault(config, "SHIP_REF", sourceRef)
+	if ref == "latest" {
+		var err error
+		ref, err = latestReleaseTag(ctx, repo)
+		if err != nil {
+			cleanup()
+			return "", func() {}, fmt.Errorf("resolve latest ship release: %w", err)
+		}
+	}
+	if err := os.Setenv("SHIP_SOURCE_REF", ref); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
 	if err := downloadSource(ctx, dir, repo, ref); err != nil {
 		cleanup()
 		return "", func() {}, err
@@ -31,7 +48,7 @@ func shipSource(ctx context.Context) (string, func(), error) {
 }
 
 func downloadSource(ctx context.Context, dir string, repo string, ref string) error {
-	curl := exec.CommandContext(ctx, "curl", "-fsSL", "https://github.com/"+repo+"/archive/refs/heads/"+ref+".tar.gz")
+	curl := exec.CommandContext(ctx, "curl", "-fsSL", archiveURL(repo, ref))
 	tar := exec.CommandContext(ctx, "tar", "-xz", "-C", dir, "--strip-components=1")
 	pipe, err := curl.StdoutPipe()
 	if err != nil {
@@ -56,6 +73,32 @@ func downloadSource(ctx context.Context, dir string, repo string, ref string) er
 		return fmt.Errorf("extract ship source: %w", tarErr)
 	}
 	return nil
+}
+
+func archiveURL(repo string, ref string) string {
+	kind := "heads"
+	if strings.HasPrefix(ref, "v") {
+		kind = "tags"
+	}
+	return "https://github.com/" + repo + "/archive/refs/" + kind + "/" + ref + ".tar.gz"
+}
+
+func latestReleaseTag(ctx context.Context, repo string) (string, error) {
+	curl := exec.CommandContext(ctx, "curl", "-fsSL", "https://api.github.com/repos/"+repo+"/releases/latest")
+	output, err := curl.Output()
+	if err != nil {
+		return "", fmt.Errorf("fetch latest release: %w", err)
+	}
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.Unmarshal(output, &release); err != nil {
+		return "", fmt.Errorf("parse latest release: %w", err)
+	}
+	if release.TagName == "" {
+		return "", fmt.Errorf("latest release missing tag_name")
+	}
+	return release.TagName, nil
 }
 
 func runInDir(ctx context.Context, dir string, name string) error {

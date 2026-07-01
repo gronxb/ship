@@ -36,6 +36,7 @@ Install the CLI on macOS or Linux:
 ```sh
 curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
+ship -v
 ```
 
 Get the credentials, then create `.env` from the `.env.example` shape:
@@ -65,6 +66,7 @@ Then run:
 
 ```sh
 ship install
+ship upgrade
 ```
 
 Ship can deploy any project that has a `Dockerfile`; the framework and runtime

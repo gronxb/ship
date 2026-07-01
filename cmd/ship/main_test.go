@@ -23,6 +23,23 @@ func TestRunPrintsVersionWhenShortVersionFlagIsUsed(t *testing.T) {
 	}
 }
 
+func TestRunPrintsInjectedVersionWhenBuiltFromReleaseTag(t *testing.T) {
+	original := version
+	version = "v1.2.3"
+	t.Cleanup(func() { version = original })
+
+	var output bytes.Buffer
+	withStdout(t, &output, func() {
+		if err := run(context.Background(), []string{"-v"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	if strings.TrimSpace(output.String()) != "ship v1.2.3" {
+		t.Fatalf("unexpected version output %q", output.String())
+	}
+}
+
 func TestRunPrintsRichHelpWhenLongHelpFlagIsUsed(t *testing.T) {
 	// Given
 	var output bytes.Buffer
@@ -186,6 +203,12 @@ func clearShipEnv(t *testing.T) {
 		"SHIP_DNS",
 		"SHIP_DASHBOARD_SERVICE",
 		"SHIP_IMAGE_PREFIX",
+		"SHIP_BIN",
+		"SHIP_CONFIG",
+		"SHIP_REF",
+		"SHIP_REPO",
+		"SHIP_SOURCE_DIR",
+		"SHIP_SOURCE_REF",
 		"KIND_CLUSTER",
 	} {
 		t.Setenv(name, "")

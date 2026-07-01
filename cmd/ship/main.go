@@ -12,7 +12,7 @@ import (
 	"github.com/gronxb/ship/internal/deploy"
 )
 
-const version = "dev"
+var version = "dev"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

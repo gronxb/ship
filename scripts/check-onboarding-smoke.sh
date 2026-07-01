@@ -33,6 +33,7 @@ for arg in "$@"; do
   last="$arg"
 done
 case "$last" in
+  *api.github.com*/releases/latest) printf '{"tag_name":"v2.0.0"}\n' ;;
   *install.sh) cat "$SHIP_TEST_INSTALL" ;;
   *) cat "$SHIP_TEST_TARBALL" ;;
 esac
