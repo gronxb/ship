@@ -43,7 +43,8 @@ SHIP_DOMAIN=mydomain.com
 CLOUDFLARE_API_TOKEN=<token>
 TAILSCALE_CLIENT_ID=<client-id>
 TAILSCALE_CLIENT_SECRET=<client-secret>
-# Optional; defaults to k8s.
+# Optional dashboard service name.
+# Defaults to k8s, which gives you k8s.your-domain.com.
 # SHIP_DASHBOARD_SERVICE=ops
 ```
 
@@ -236,7 +237,8 @@ SHIP_DOMAIN=mydomain.com
 CLOUDFLARE_API_TOKEN=
 TAILSCALE_CLIENT_ID=
 TAILSCALE_CLIENT_SECRET=
-# Optional; defaults to k8s.
+# Optional dashboard service name.
+# Defaults to k8s, which gives you k8s.your-domain.com.
 # SHIP_DASHBOARD_SERVICE=ops
 ```
 

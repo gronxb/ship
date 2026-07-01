@@ -42,7 +42,8 @@ CLOUDFLARE_API_TOKEN=your-cloudflare-token
 TAILSCALE_CLIENT_ID=your-tailscale-client-id
 TAILSCALE_CLIENT_SECRET=your-tailscale-client-secret
 
-# Optional; defaults to k8s.
+# Optional dashboard service name.
+# Defaults to k8s, which gives you k8s.your-domain.com.
 # SHIP_DASHBOARD_SERVICE=ops
 ```
 
