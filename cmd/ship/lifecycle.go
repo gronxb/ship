@@ -8,8 +8,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
+
+var currentOS = runtime.GOOS
 
 func runInstall(ctx context.Context, args []string) error {
 	flags := flag.NewFlagSet("ship install", flag.ContinueOnError)
@@ -23,6 +26,9 @@ func runInstall(ctx context.Context, args []string) error {
 	}
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments: %v", flags.Args())
+	}
+	if currentOS == "windows" {
+		return fmt.Errorf("ship install is only supported on macOS and Linux because it bootstraps POSIX shell scripts; build the Windows binary with `go build ./cmd/ship` and use `ship --service ...` against an existing cluster")
 	}
 
 	if err := loadEnvFile(*envFile); err != nil {
@@ -208,12 +214,32 @@ func shipConfigPath() (string, string, error) {
 		return path, filepath.Dir(path), nil
 	}
 	configHome := os.Getenv("XDG_CONFIG_HOME")
-	if configHome == "" {
-		home := os.Getenv("HOME")
-		if home == "" {
-			return "", "", fmt.Errorf("missing HOME for ship config")
+	if configHome != "" {
+		dir := filepath.Join(configHome, "ship")
+		return filepath.Join(dir, "config.env"), dir, nil
+	}
+
+	if currentOS == "windows" {
+		configHome = firstEnv("LOCALAPPDATA", "APPDATA")
+		if configHome == "" {
+			var err error
+			configHome, err = os.UserConfigDir()
+			if err != nil {
+				return "", "", fmt.Errorf("resolve ship config dir: %w", err)
+			}
 		}
+		dir := filepath.Join(configHome, "ship")
+		return filepath.Join(dir, "config.env"), dir, nil
+	}
+
+	home := os.Getenv("HOME")
+	if home == "" {
+		configHome = firstEnv("LOCALAPPDATA", "APPDATA")
+	} else {
 		configHome = filepath.Join(home, ".config")
+	}
+	if configHome == "" {
+		return "", "", fmt.Errorf("missing HOME for ship config")
 	}
 	dir := filepath.Join(configHome, "ship")
 	return filepath.Join(dir, "config.env"), dir, nil

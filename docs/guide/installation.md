@@ -6,18 +6,34 @@ dashboard at `https://k8s.<your-domain>`.
 
 | You want | Run | Lands on disk or cluster |
 | --- | --- | --- |
-| CLI only | `curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh \| sh` | `~/.local/bin/ship` |
+| CLI only on macOS/Linux | `curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh \| sh` | `~/.local/bin/ship` |
+| CLI only on Windows | `go install github.com/gronxb/ship/cmd/ship@latest` | `%USERPROFILE%\go\bin\ship.exe` |
 | 0 to 100 setup | `ship install` | `kind-ship`, Gateway resources, DNS, and dashboard |
 | 100 to 0 teardown | `ship uninstall` | Removes DNS, cluster resources, and Ship config |
 | Source checkout | `make test` then `go build -o ~/.local/bin/ship ./cmd/ship` | Local development binary |
 
 ## For Humans
 
-Install the CLI:
+Install the CLI on macOS or Linux:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
+```
+
+Install the CLI on Windows:
+
+```powershell
+go install github.com/gronxb/ship/cmd/ship@latest
+$env:Path += ";$env:USERPROFILE\go\bin"
+```
+
+`ship install` bootstraps the kind cluster, Gateway stack, and dashboard through
+POSIX shell scripts. Run it on macOS or Linux. On Windows, use the CLI against an
+existing Kubernetes context from a Dockerfile project:
+
+```powershell
+ship --service demo
 ```
 
 Fill `.env`:
@@ -42,7 +58,7 @@ Then verify:
 ```sh
 ship --help
 kubectl rollout status deployment/k8s -n ship-services --timeout=180s
-open https://k8s.mydomain.com
+curl -fsS https://k8s.mydomain.com
 ```
 
 Deploy any Dockerfile project after onboarding:

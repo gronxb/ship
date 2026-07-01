@@ -169,6 +169,56 @@ func TestRunUninstallPreservesManualDNSOwnership(t *testing.T) {
 	}
 }
 
+func TestShipConfigPathUsesWindowsConfigHomeWhenHomeIsMissing(t *testing.T) {
+	clearShipEnv(t)
+	originalOS := currentOS
+	currentOS = "windows"
+	t.Cleanup(func() { currentOS = originalOS })
+	dir := t.TempDir()
+	t.Setenv("SHIP_CONFIG", "")
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("HOME", "")
+	t.Setenv("LOCALAPPDATA", filepath.Join(dir, "LocalAppData"))
+	t.Setenv("APPDATA", filepath.Join(dir, "AppData", "Roaming"))
+
+	path, configDir, err := shipConfigPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantDir := filepath.Join(dir, "LocalAppData", "ship")
+	if configDir != wantDir {
+		t.Fatalf("unexpected config dir %q, want %q", configDir, wantDir)
+	}
+	if path != filepath.Join(wantDir, "config.env") {
+		t.Fatalf("unexpected config path %q", path)
+	}
+}
+
+func TestRunInstallRejectsWindowsShellLifecycle(t *testing.T) {
+	clearShipEnv(t)
+	originalOS := currentOS
+	currentOS = "windows"
+	t.Cleanup(func() { currentOS = originalOS })
+	dir := t.TempDir()
+	envPath := filepath.Join(dir, ".env")
+	writeFile(t, envPath, strings.Join([]string{
+		"SHIP_DOMAIN=example.com",
+		"CLOUDFLARE_API_TOKEN=test-token",
+		"TAILSCALE_CLIENT_ID=test-client",
+		"TAILSCALE_CLIENT_SECRET=test-secret",
+	}, "\n")+"\n")
+	t.Setenv("SHIP_CONFIG", filepath.Join(dir, "config.env"))
+
+	err := run(context.Background(), []string{"install", "--env-file", envPath})
+	if err == nil {
+		t.Fatal("expected Windows install error")
+	}
+	if !strings.Contains(err.Error(), "ship install is only supported on macOS and Linux") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func clearShipEnv(t *testing.T) {
 	t.Helper()
 	for _, name := range []string{
