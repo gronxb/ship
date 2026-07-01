@@ -23,6 +23,25 @@ func TestRunPrintsVersionWhenShortVersionFlagIsUsed(t *testing.T) {
 	}
 }
 
+func TestRunPrintsRichHelpWhenLongHelpFlagIsUsed(t *testing.T) {
+	// Given
+	var output bytes.Buffer
+
+	// When
+	withStdout(t, &output, func() {
+		if err := run(context.Background(), []string{"--help"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	// Then
+	for _, want := range []string{"Usage", "Commands", "Options", "install", "uninstall", "--service", "--dry-run", "--version"} {
+		if !strings.Contains(output.String(), want) {
+			t.Fatalf("help output missing %q:\n%s", want, output.String())
+		}
+	}
+}
+
 func TestRunInstallRunsBootstrapDomainAndDashboard(t *testing.T) {
 	clearShipEnv(t)
 	dir := t.TempDir()

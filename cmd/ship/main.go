@@ -28,7 +28,21 @@ func run(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		switch args[0] {
 		case "-h", "--help", "help":
-			fmt.Println("usage: ship install|uninstall|--service <name> [options]")
+			fmt.Print(`Usage:
+  ship [options]
+  ship install [options]
+  ship uninstall [options]
+
+Commands:
+  install     bootstrap ship infrastructure
+  uninstall   remove ship infrastructure
+
+Options:
+  --service <name>   DNS-safe service name
+  --dry-run          print the plan without applying it
+  -v, --version      print version
+  -h, --help         print help
+`)
 			return nil
 		case "-v", "--version", "version":
 			fmt.Println("ship " + version)
