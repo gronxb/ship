@@ -64,10 +64,19 @@ Get the values:
 - `CLOUDFLARE_API_TOKEN`: Cloudflare dashboard -> My Profile -> API Tokens ->
   Create Token -> Edit zone DNS. Use `Zone:DNS:Edit` and `Zone:Zone:Read`,
   scoped to the zone for `SHIP_DOMAIN`.
-- `TAILSCALE_CLIENT_ID` / `TAILSCALE_CLIENT_SECRET`: Tailscale admin console ->
-  Access controls, add `tag:k8s-operator` and `tag:k8s` ownership, then create
-  an OAuth client for the Kubernetes Operator with the `tag:k8s-operator` tag.
-  Grant Services read/write, Devices Core read/write, and Auth Keys read/write.
+- `TAILSCALE_CLIENT_ID` / `TAILSCALE_CLIENT_SECRET`: in Tailscale, open
+  Access controls and make sure `tagOwners` contains this:
+
+  ```json
+  "tagOwners": {
+    "tag:k8s-operator": [],
+    "tag:k8s": ["tag:k8s-operator"]
+  }
+  ```
+
+  Then open Trust credentials -> OAuth clients -> Generate OAuth client. Add
+  the `tag:k8s-operator` tag and grant write access for Services, Devices Core,
+  and Auth Keys. Copy the generated Client ID and Client secret into `.env`.
 
 Run 0 to 100:
 
