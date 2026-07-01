@@ -217,10 +217,11 @@ variables to set and can be rerun safely.
 
 ## What The Installer Does
 
-`install.sh` downloads the repository archive, builds `cmd/ship`, and installs
-the binary at `~/.local/bin/ship`. By default it builds the latest GitHub
-Release tag, so `ship -v` reports the installed release version. Set
-`SHIP_REF=main` only when you intentionally want a development build.
+`install.sh` resolves the latest GitHub Release, downloads the matching
+`ship_<version>_<os>_<arch>.tar.gz` binary asset, and installs it at
+`~/.local/bin/ship`. This path does not require cloning the repository or
+having Go installed. Set `SHIP_REF=main` only when you intentionally want a
+development source build.
 
 `ship install` reads `.env`, writes `~/.config/ship/config.env`, and runs:
 

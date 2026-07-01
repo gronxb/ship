@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -81,6 +82,19 @@ func archiveURL(repo string, ref string) string {
 		kind = "tags"
 	}
 	return "https://github.com/" + repo + "/archive/refs/" + kind + "/" + ref + ".tar.gz"
+}
+
+func releaseAssetURL(repo string, ref string) (string, error) {
+	osName := runtime.GOOS
+	if osName != "darwin" && osName != "linux" {
+		return "", fmt.Errorf("unsupported OS for release asset: %s", osName)
+	}
+	arch := runtime.GOARCH
+	if arch != "amd64" && arch != "arm64" {
+		return "", fmt.Errorf("unsupported architecture for release asset: %s", arch)
+	}
+	asset := "ship_" + ref + "_" + osName + "_" + arch + ".tar.gz"
+	return "https://github.com/" + repo + "/releases/download/" + ref + "/" + asset, nil
 }
 
 func latestReleaseTag(ctx context.Context, repo string) (string, error) {

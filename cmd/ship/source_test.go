@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -29,6 +30,17 @@ func TestArchiveURLMatchesReleaseWorkflowVTags(t *testing.T) {
 
 	if url != "https://github.com/gronxb/ship/archive/refs/tags/vnext.tar.gz" {
 		t.Fatalf("unexpected archive URL: %s", url)
+	}
+}
+
+func TestReleaseAssetURLMatchesReleaseWorkflowArtifacts(t *testing.T) {
+	url, err := releaseAssetURL("gronxb/ship", "v1.2.3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "https://github.com/gronxb/ship/releases/download/v1.2.3/ship_v1.2.3_" + runtime.GOOS + "_" + runtime.GOARCH + ".tar.gz"
+	if url != want {
+		t.Fatalf("unexpected release asset URL: %s", url)
 	}
 }
 

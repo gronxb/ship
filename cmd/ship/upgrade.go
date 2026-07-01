@@ -96,6 +96,7 @@ func upgradeCLI(ctx context.Context, source string) (string, error) {
 		return "", err
 	}
 	config := loadConfig()
+	repo := configDefault(config, "SHIP_REPO", sourceRepo)
 	ref := os.Getenv("SHIP_SOURCE_REF")
 	if ref == "" {
 		ref = configDefault(config, "SHIP_REF", sourceRef)
@@ -103,7 +104,13 @@ func upgradeCLI(ctx context.Context, source string) (string, error) {
 	if ref == "latest" {
 		ref = version
 	}
-	ldflags := "-X main.version=" + ref + " -X main.sourceRepo=" + configDefault(config, "SHIP_REPO", sourceRepo) + " -X main.sourceRef=" + ref
+	if os.Getenv("SHIP_SOURCE_DIR") == "" && strings.HasPrefix(ref, "v") {
+		if err := installReleaseAsset(ctx, binPath, repo, ref); err != nil {
+			return "", err
+		}
+		return binPath, nil
+	}
+	ldflags := "-X main.version=" + ref + " -X main.sourceRepo=" + repo + " -X main.sourceRef=" + ref
 	cmd := exec.CommandContext(ctx, "go", "build", "-ldflags", ldflags, "-o", binPath, "./cmd/ship")
 	cmd.Dir = source
 	cmd.Stdout = os.Stdout
@@ -112,6 +119,50 @@ func upgradeCLI(ctx context.Context, source string) (string, error) {
 		return "", fmt.Errorf("go build ship CLI: %w", err)
 	}
 	return binPath, nil
+}
+
+func installReleaseAsset(ctx context.Context, binPath string, repo string, ref string) error {
+	url, err := releaseAssetURL(repo, ref)
+	if err != nil {
+		return err
+	}
+	tmp, err := os.MkdirTemp(filepath.Dir(binPath), ".ship-upgrade-*")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.RemoveAll(tmp) }()
+	curl := exec.CommandContext(ctx, "curl", "-fsSL", url)
+	tar := exec.CommandContext(ctx, "tar", "-xz", "-C", tmp, "ship")
+	pipe, err := curl.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	curl.Stderr = os.Stderr
+	tar.Stdin = pipe
+	tar.Stdout = os.Stdout
+	tar.Stderr = os.Stderr
+	if err := curl.Start(); err != nil {
+		return err
+	}
+	if err := tar.Start(); err != nil {
+		return err
+	}
+	curlErr := curl.Wait()
+	tarErr := tar.Wait()
+	if curlErr != nil {
+		return fmt.Errorf("download ship release asset: %w", curlErr)
+	}
+	if tarErr != nil {
+		return fmt.Errorf("extract ship release asset: %w", tarErr)
+	}
+	assetPath := filepath.Join(tmp, "ship")
+	if err := os.Chmod(assetPath, 0o755); err != nil {
+		return err
+	}
+	if err := os.Rename(assetPath, binPath); err != nil {
+		return err
+	}
+	return nil
 }
 
 func confirmInfrastructureUpdate(input *os.File) bool {

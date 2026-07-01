@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -125,15 +126,19 @@ func TestRunUpgradeYesDefaultsToLatestReleaseTag(t *testing.T) {
 	source := filepath.Join(dir, "source")
 	curlLog := filepath.Join(dir, "curl.log")
 	commandLog := filepath.Join(dir, "commands.log")
-	archivePath := filepath.Join(dir, "v9.8.7.tar.gz")
+	sourceArchivePath := filepath.Join(dir, "v9.8.7-source.tar.gz")
+	assetPath := filepath.Join(dir, "ship_v9.8.7_"+runtime.GOOS+"_"+runtime.GOARCH+".tar.gz")
 	configPath := filepath.Join(dir, "config.env")
+	binPath := filepath.Join(home, "custom-bin", "ship-next")
 	writeUpgradeSource(t, source, commandLog)
-	if err := exec.Command("tar", "-czf", archivePath, "-C", source, ".").Run(); err != nil {
+	if err := exec.Command("tar", "-czf", sourceArchivePath, "-C", source, ".").Run(); err != nil {
 		t.Fatal(err)
 	}
-	writeFakeCurl(t, filepath.Join(dir, "bin"), archivePath, curlLog)
+	writeReleaseAsset(t, assetPath, "v9.8.7")
+	writeFakeCurl(t, filepath.Join(dir, "bin"), sourceArchivePath, assetPath, curlLog)
 	t.Setenv("PATH", filepath.Join(dir, "bin")+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("HOME", home)
+	t.Setenv("SHIP_BIN", binPath)
 	t.Setenv("SHIP_CONFIG", configPath)
 
 	withStdout(t, io.Discard, func() {
@@ -143,12 +148,16 @@ func TestRunUpgradeYesDefaultsToLatestReleaseTag(t *testing.T) {
 	})
 
 	curl := readFile(t, curlLog)
-	for _, want := range []string{"api.github.com/repos/gronxb/ship/releases/latest", "archive/refs/tags/v9.8.7.tar.gz"} {
+	for _, want := range []string{
+		"api.github.com/repos/gronxb/ship/releases/latest",
+		"archive/refs/tags/v9.8.7.tar.gz",
+		"releases/download/v9.8.7/ship_v9.8.7_" + runtime.GOOS + "_" + runtime.GOARCH + ".tar.gz",
+	} {
 		if !strings.Contains(curl, want) {
 			t.Fatalf("latest upgrade did not request %q; curl log:\n%s", want, curl)
 		}
 	}
-	versionOutput := runShipVersion(t, filepath.Join(home, ".local", "bin", "ship"))
+	versionOutput := runShipVersion(t, binPath)
 	if strings.TrimSpace(versionOutput) != "ship v9.8.7" {
 		t.Fatalf("upgrade did not install latest release version, got %q", versionOutput)
 	}
@@ -156,6 +165,60 @@ func TestRunUpgradeYesDefaultsToLatestReleaseTag(t *testing.T) {
 	for _, want := range []string{"deploy-domain", "deploy-dashboard"} {
 		if !strings.Contains(log, want) {
 			t.Fatalf("upgrade did not run %s; log:\n%s", want, log)
+		}
+	}
+}
+
+func TestRunUpgradeMainRefUsesSourceBuild(t *testing.T) {
+	clearShipEnv(t)
+	dir := t.TempDir()
+	home := filepath.Join(dir, "home")
+	source := filepath.Join(dir, "source")
+	curlLog := filepath.Join(dir, "curl.log")
+	goLog := filepath.Join(dir, "go.log")
+	commandLog := filepath.Join(dir, "commands.log")
+	sourceArchivePath := filepath.Join(dir, "main-source.tar.gz")
+	configPath := filepath.Join(dir, "config.env")
+	writeUpgradeSource(t, source, commandLog)
+	if err := exec.Command("tar", "-czf", sourceArchivePath, "-C", source, ".").Run(); err != nil {
+		t.Fatal(err)
+	}
+	realGo, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	binDir := filepath.Join(dir, "bin")
+	writeFakeCurlForMain(t, binDir, sourceArchivePath, curlLog)
+	writeFakeGo(t, binDir, realGo, goLog)
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("HOME", home)
+	t.Setenv("SHIP_CONFIG", configPath)
+	t.Setenv("SHIP_REF", "main")
+
+	withStdout(t, io.Discard, func() {
+		if err := run(context.Background(), []string{"upgrade", "-y"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+
+	curl := readFile(t, curlLog)
+	if !strings.Contains(curl, "archive/refs/heads/main.tar.gz") {
+		t.Fatalf("main upgrade did not request source archive; curl log:\n%s", curl)
+	}
+	if strings.Contains(curl, "releases/download") {
+		t.Fatalf("main upgrade should not request release asset; curl log:\n%s", curl)
+	}
+	if !strings.Contains(readFile(t, goLog), "go build") {
+		t.Fatalf("main upgrade did not build from source; go log:\n%s", readFile(t, goLog))
+	}
+	versionOutput := runShipVersion(t, filepath.Join(home, ".local", "bin", "ship"))
+	if strings.TrimSpace(versionOutput) != "ship main" {
+		t.Fatalf("upgrade did not install main source version, got %q", versionOutput)
+	}
+	log := readFile(t, commandLog)
+	for _, want := range []string{"deploy-domain", "deploy-dashboard"} {
+		if !strings.Contains(log, want) {
+			t.Fatalf("main upgrade did not run %s; log:\n%s", want, log)
 		}
 	}
 }
@@ -168,19 +231,62 @@ func writeUpgradeSource(t *testing.T, source string, logPath string) {
 	writeExecutable(t, filepath.Join(source, "deploy-system", "deploy-dashboard.sh"), "deploy-dashboard\n", logPath)
 }
 
-func writeFakeCurl(t *testing.T, dir string, archivePath string, logPath string) {
+func writeReleaseAsset(t *testing.T, path string, ref string) {
+	t.Helper()
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "ship"), "#!/bin/sh\nprintf 'ship "+ref+"\\n'\n")
+	if err := os.Chmod(filepath.Join(dir, "ship"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("tar", "-czf", path, "-C", dir, "ship").Run(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeFakeCurl(t *testing.T, dir string, sourceArchivePath string, assetPath string, logPath string) {
 	t.Helper()
 	script := strings.Join([]string{
 		"#!/bin/sh",
 		"printf 'curl %s\\n' \"$*\" >> " + shellQuote(logPath),
 		"case \"$*\" in",
 		"  *api.github.com*) printf '{\"tag_name\":\"v9.8.7\"}\\n' ;;",
-		"  *refs/tags/v9.8.7.tar.gz*) cat " + shellQuote(archivePath) + " ;;",
+		"  *refs/tags/v9.8.7.tar.gz*) cat " + shellQuote(sourceArchivePath) + " ;;",
+		"  *releases/download/v9.8.7/ship_v9.8.7_" + runtime.GOOS + "_" + runtime.GOARCH + ".tar.gz*) cat " + shellQuote(assetPath) + " ;;",
 		"  *) echo \"unexpected curl: $*\" >&2; exit 2 ;;",
 		"esac",
 	}, "\n") + "\n"
 	writeFile(t, filepath.Join(dir, "curl"), script)
 	if err := os.Chmod(filepath.Join(dir, "curl"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeFakeCurlForMain(t *testing.T, dir string, sourceArchivePath string, logPath string) {
+	t.Helper()
+	script := strings.Join([]string{
+		"#!/bin/sh",
+		"printf 'curl %s\\n' \"$*\" >> " + shellQuote(logPath),
+		"case \"$*\" in",
+		"  *refs/heads/main.tar.gz*) cat " + shellQuote(sourceArchivePath) + " ;;",
+		"  *releases/download*) echo \"unexpected release asset: $*\" >&2; exit 2 ;;",
+		"  *) echo \"unexpected curl: $*\" >&2; exit 2 ;;",
+		"esac",
+	}, "\n") + "\n"
+	writeFile(t, filepath.Join(dir, "curl"), script)
+	if err := os.Chmod(filepath.Join(dir, "curl"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeFakeGo(t *testing.T, dir string, realGo string, logPath string) {
+	t.Helper()
+	script := strings.Join([]string{
+		"#!/bin/sh",
+		"printf 'go %s\\n' \"$*\" >> " + shellQuote(logPath),
+		"exec " + shellQuote(realGo) + " \"$@\"",
+	}, "\n") + "\n"
+	writeFile(t, filepath.Join(dir, "go"), script)
+	if err := os.Chmod(filepath.Join(dir, "go"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 }

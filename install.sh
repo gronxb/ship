@@ -10,6 +10,36 @@ latest_release_tag() {
     sed -n '1p'
 }
 
+release_os() {
+  case "$(uname -s)" in
+    Darwin)
+      printf 'darwin'
+      ;;
+    Linux)
+      printf 'linux'
+      ;;
+    *)
+      printf 'error: unsupported OS for release install: %s\n' "$(uname -s)" >&2
+      exit 1
+      ;;
+  esac
+}
+
+release_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64)
+      printf 'amd64'
+      ;;
+    arm64|aarch64)
+      printf 'arm64'
+      ;;
+    *)
+      printf 'error: unsupported architecture for release install: %s\n' "$(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+}
+
 archive_kind() {
   case "$1" in
     v*)
@@ -39,13 +69,24 @@ trap cleanup EXIT
 bin_dir="${HOME}/.local/bin"
 mkdir -p "$bin_dir"
 
-kind="$(archive_kind "$ref")"
 version="$ref"
 
-curl -fsSL "https://github.com/${repo}/archive/refs/${kind}/${ref}.tar.gz" |
-  tar -xz -C "$tmp" --strip-components=1
-
-(cd "$tmp" && go build -ldflags "-X main.version=$version -X main.sourceRepo=$repo -X main.sourceRef=$ref" -o "$bin_dir/ship" ./cmd/ship)
+case "$ref" in
+  v*)
+    os="$(release_os)"
+    arch="$(release_arch)"
+    asset="ship_${ref}_${os}_${arch}.tar.gz"
+    curl -fsSL "https://github.com/${repo}/releases/download/${ref}/${asset}" |
+      tar -xz -C "$bin_dir" ship
+    chmod +x "$bin_dir/ship"
+    ;;
+  *)
+    kind="$(archive_kind "$ref")"
+    curl -fsSL "https://github.com/${repo}/archive/refs/${kind}/${ref}.tar.gz" |
+      tar -xz -C "$tmp" --strip-components=1
+    (cd "$tmp" && go build -ldflags "-X main.version=$version -X main.sourceRepo=$repo -X main.sourceRef=$ref" -o "$bin_dir/ship" ./cmd/ship)
+    ;;
+esac
 
 printf 'installed: %s/ship\n' "$bin_dir"
 printf 'version: %s\n' "$version"

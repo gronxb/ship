@@ -19,6 +19,26 @@ tar \
   -C "$(dirname "$root")" \
   "$(basename "$root")"
 
+asset_dir="$work/asset"
+mkdir -p "$asset_dir"
+cat > "$asset_dir/ship" <<'SH'
+#!/bin/sh
+case "$1" in
+  -v|--version|version)
+    printf 'ship v2.0.0\n'
+    ;;
+  --help|-h|help)
+    printf 'Usage:\n  ship install [options]\n'
+    ;;
+  *)
+    printf 'ship %s\n' "$*"
+    ;;
+esac
+SH
+chmod +x "$asset_dir/ship"
+asset_tar="$work/ship_v2.0.0.tgz"
+tar -czf "$asset_tar" -C "$asset_dir" ship
+
 fakebin="$work/bin"
 home="$work/home"
 log="$work/commands.log"
@@ -34,7 +54,9 @@ for arg in "$@"; do
 done
 case "$last" in
   *api.github.com*/releases/latest) printf '{"tag_name":"v2.0.0"}\n' ;;
+  *releases/download/v2.0.0/ship_v2.0.0_*.tar.gz) cat "$SHIP_TEST_ASSET_TARBALL" ;;
   *install.sh) cat "$SHIP_TEST_INSTALL" ;;
+  *archive/refs/*) cat "$SHIP_TEST_TARBALL" ;;
   *) cat "$SHIP_TEST_TARBALL" ;;
 esac
 SH
@@ -151,6 +173,7 @@ chmod +x "$fakebin"/*
 PATH="$fakebin:$PATH" \
 HOME="$home" \
 SHIP_TEST_INSTALL="$root/install.sh" \
+SHIP_TEST_ASSET_TARBALL="$asset_tar" \
 SHIP_TEST_TARBALL="$repo_tar" \
 SHIP_TEST_LOG="$log" \
 SHIP_TEST_REAL_GO="$real_go" \
@@ -173,6 +196,40 @@ if grep -iq 'cloudflare' "$work/stdout" "$work/stderr"; then
   exit 1
 fi
 grep -Fq 'Usage:' "$work/help"
+grep -Fq 'releases/download/v2.0.0/ship_v2.0.0_' "$log"
+if grep -Fq 'archive/refs/tags/v2.0.0.tar.gz' "$log"; then
+  printf 'default installer should use release asset, not source archive\n' >&2
+  exit 1
+fi
+if grep -Fq 'go build' "$log"; then
+  printf 'default installer should not build the CLI from source\n' >&2
+  exit 1
+fi
+
+source_home="$work/source-home"
+source_log="$work/source-commands.log"
+mkdir -p "$source_home"
+PATH="$fakebin:$PATH" \
+HOME="$source_home" \
+SHIP_REF=main \
+SHIP_TEST_INSTALL="$root/install.sh" \
+SHIP_TEST_ASSET_TARBALL="$asset_tar" \
+SHIP_TEST_TARBALL="$repo_tar" \
+SHIP_TEST_LOG="$source_log" \
+SHIP_TEST_REAL_GO="$real_go" \
+sh -c 'curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh' \
+  > "$work/source-stdout" \
+  2> "$work/source-stderr"
+
+grep -Fq 'archive/refs/heads/main.tar.gz' "$source_log"
+grep -Fq 'go build' "$source_log"
+if grep -Fq 'releases/download/' "$source_log"; then
+  printf 'SHIP_REF=main should stay on source archive install\n' >&2
+  exit 1
+fi
+
+rm -f "$home/.local/bin/ship"
+(cd "$root" && "$real_go" build -o "$home/.local/bin/ship" ./cmd/ship)
 
 cloudflare_home="$work/cloudflare-home"
 mkdir -p "$cloudflare_home"

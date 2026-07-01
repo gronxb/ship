@@ -39,6 +39,9 @@ export PATH="$HOME/.local/bin:$PATH"
 ship -v
 ```
 
+The installer uses the latest GitHub Release binary by default, so you do not
+need to clone this repository to install or upgrade Ship.
+
 Get the credentials, then create `.env` from the `.env.example` shape:
 
 - Cloudflare: create an
