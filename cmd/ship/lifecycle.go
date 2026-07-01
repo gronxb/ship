@@ -99,6 +99,8 @@ func runUninstall(ctx context.Context, args []string) error {
 	domain := configDefault(config, "SHIP_DOMAIN", "")
 	cluster := configDefault(config, "KIND_CLUSTER", "ship")
 	token := firstEnv("CLOUDFLARE_API_TOKEN", "CF_API_TOKEN")
+	tailscaleID := firstEnv("TAILSCALE_CLIENT_ID", "TAILSCALE_OAUTH_CLIENT_ID", "TS_OAUTH_CLIENT_ID")
+	tailscaleSecret := firstEnv("TAILSCALE_CLIENT_SECRET", "TAILSCALE_OAUTH_CLIENT_SECRET", "TS_OAUTH_CLIENT_SECRET")
 	dns := configDefault(config, "SHIP_DNS", "")
 	if dns == "" {
 		if token != "" {
@@ -116,6 +118,7 @@ func runUninstall(ctx context.Context, args []string) error {
 		if cloudflareDNS && domain != "" {
 			fmt.Printf("delete Cloudflare wildcard DNS for *.%s\n", domain)
 		}
+		fmt.Println("delete Tailscale devices named ship-tailscale* and tailscale-operator*")
 		fmt.Printf("kind delete cluster --name %s\n", cluster)
 		fmt.Printf("rm -rf %s\n", configDir)
 		return nil
@@ -124,18 +127,30 @@ func runUninstall(ctx context.Context, args []string) error {
 	if cloudflareDNS && token == "" {
 		return fmt.Errorf("missing CLOUDFLARE_API_TOKEN; refusing to uninstall before Cloudflare DNS cleanup")
 	}
-	if cloudflareDNS {
-		source, cleanup, err := shipSource(ctx)
+	source := ""
+	cleanup := func() {}
+	if cloudflareDNS || (tailscaleID != "" && tailscaleSecret != "") {
+		var err error
+		source, cleanup, err = shipSource(ctx)
 		if err != nil {
 			return err
 		}
 		defer cleanup()
+	}
+	if cloudflareDNS {
 		if err := runInDir(ctx, filepath.Join(source, "deploy-system"), "./delete-cloudflare-dns.sh"); err != nil {
 			return err
 		}
 	}
 	if err := runCommand(ctx, "kind", "delete", "cluster", "--name", cluster); err != nil {
 		return err
+	}
+	if tailscaleID != "" && tailscaleSecret != "" {
+		if err := runInDir(ctx, filepath.Join(source, "deploy-system"), "./delete-tailscale-devices.sh"); err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("skipped: missing Tailscale OAuth credentials for device cleanup")
 	}
 	if err := os.RemoveAll(configDir); err != nil {
 		return fmt.Errorf("remove %s: %w", configPath, err)

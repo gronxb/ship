@@ -217,6 +217,7 @@ ship uninstall --env-file "$cloudflare_env" --dry-run \
   > "$work/uninstall-stdout" \
   2> "$work/uninstall-stderr"
 grep -Fq 'delete Cloudflare wildcard DNS for *.example.com' "$work/uninstall-stdout"
+grep -Fq 'delete Tailscale devices named ship-tailscale* and tailscale-operator*' "$work/uninstall-stdout"
 grep -Fq 'kind delete cluster --name ship' "$work/uninstall-stdout"
 
 env_home="$work/env-home"
