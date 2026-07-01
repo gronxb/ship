@@ -33,11 +33,17 @@ curl -fsSL https://raw.githubusercontent.com/gronxb/ship/main/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Start from `.env.example`, then fill in your domain, Cloudflare token, and
-Tailscale OAuth credentials:
+Create `.env` from the `.env.example` shape and fill in your domain,
+Cloudflare token, and Tailscale OAuth credentials:
 
-```sh
-cp .env.example .env
+```env
+SHIP_DOMAIN=your-domain.com
+CLOUDFLARE_API_TOKEN=your-cloudflare-token
+TAILSCALE_CLIENT_ID=your-tailscale-client-id
+TAILSCALE_CLIENT_SECRET=your-tailscale-client-secret
+
+# Optional; defaults to k8s.
+# SHIP_DASHBOARD_SERVICE=ops
 ```
 
 Then run:
