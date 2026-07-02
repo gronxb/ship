@@ -1,0 +1,53 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: internet-proxy
+  namespace: ship-system
+spec:
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyService:
+        type: LoadBalancer
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: internet
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: internet-proxy
+    namespace: ship-system
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: ship-internet
+  namespace: ship-system
+  labels:
+    external-dns: enabled
+    ship.local/exposure: internet
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-dns01
+spec:
+  gatewayClassName: internet
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: "*.example.com"
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              gateway-access: allowed
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: wildcard-example-com-tls

@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.6.0
+          run_install: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: start-app/pnpm-lock.yaml
+
+      - name: Install dashboard dependencies
+        working-directory: start-app
+        run: pnpm install --frozen-lockfile
+
+      - name: Release readiness
+        run: ./scripts/check-release-readiness.sh
+
+      - name: Go tests
+        run: go test ./...
+
+      - name: Dashboard tests
+        working-directory: start-app
+        run: |
+          pnpm test
+          pnpm typecheck
+          pnpm lint
+
+      - name: Dashboard build
+        working-directory: start-app
+        run: pnpm build

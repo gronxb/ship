@@ -1,0 +1,188 @@
+package main
+
+import (
+	"bufio"
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+)
+
+func runUpgrade(ctx context.Context, args []string) error {
+	flags := flag.NewFlagSet("ship upgrade", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	envFile := flags.String("env-file", ".env", "optional environment file with Ship infrastructure values")
+	yes := flags.Bool("y", false, "update infrastructure without prompting")
+	flags.BoolVar(yes, "yes", false, "update infrastructure without prompting")
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return nil
+		}
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected positional arguments: %v", flags.Args())
+	}
+	if currentOS == "windows" {
+		return fmt.Errorf("ship upgrade is only supported on macOS and Linux because infrastructure updates use POSIX shell scripts")
+	}
+	if _, err := os.Stat(*envFile); err == nil {
+		if err := loadEnvFile(*envFile); err != nil {
+			return err
+		}
+	}
+	config := loadConfig()
+	if os.Getenv("SHIP_REF") == "" && config["SHIP_REF"] == "" {
+		previousRef, hadPreviousRef := os.LookupEnv("SHIP_REF")
+		if err := os.Setenv("SHIP_REF", "latest"); err != nil {
+			return err
+		}
+		defer func() {
+			if hadPreviousRef {
+				_ = os.Setenv("SHIP_REF", previousRef)
+			} else {
+				_ = os.Unsetenv("SHIP_REF")
+			}
+		}()
+	}
+
+	source, cleanup, err := shipSource(ctx)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+
+	binPath, err := upgradeCLI(ctx, source)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("upgraded: %s\n", binPath)
+
+	if !*yes && !confirmInfrastructureUpdate(os.Stdin) {
+		fmt.Println("skipped: ship infrastructure update")
+		return nil
+	}
+	previousBin, hadPreviousBin := os.LookupEnv("SHIP_BIN")
+	if err := os.Setenv("SHIP_BIN", binPath); err != nil {
+		return err
+	}
+	defer func() {
+		if hadPreviousBin {
+			_ = os.Setenv("SHIP_BIN", previousBin)
+		} else {
+			_ = os.Unsetenv("SHIP_BIN")
+		}
+	}()
+	if err := updateInfrastructure(ctx, source); err != nil {
+		return err
+	}
+	fmt.Println("updated: ship infrastructure")
+	return nil
+}
+
+func upgradeCLI(ctx context.Context, source string) (string, error) {
+	binPath := os.Getenv("SHIP_BIN")
+	if binPath == "" {
+		home := os.Getenv("HOME")
+		if home == "" {
+			return "", fmt.Errorf("missing HOME for ship binary path")
+		}
+		binPath = filepath.Join(home, ".local", "bin", "ship")
+	}
+	if err := os.MkdirAll(filepath.Dir(binPath), 0o755); err != nil {
+		return "", err
+	}
+	config := loadConfig()
+	repo := configDefault(config, "SHIP_REPO", sourceRepo)
+	ref := os.Getenv("SHIP_SOURCE_REF")
+	if ref == "" {
+		ref = configDefault(config, "SHIP_REF", sourceRef)
+	}
+	if ref == "latest" {
+		ref = version
+	}
+	if os.Getenv("SHIP_SOURCE_DIR") == "" && strings.HasPrefix(ref, "v") {
+		if err := installReleaseAsset(ctx, binPath, repo, ref); err != nil {
+			return "", err
+		}
+		return binPath, nil
+	}
+	ldflags := "-X main.version=" + ref + " -X main.sourceRepo=" + repo + " -X main.sourceRef=" + ref
+	cmd := exec.CommandContext(ctx, "go", "build", "-ldflags", ldflags, "-o", binPath, "./cmd/ship")
+	cmd.Dir = source
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("go build ship CLI: %w", err)
+	}
+	return binPath, nil
+}
+
+func installReleaseAsset(ctx context.Context, binPath string, repo string, ref string) error {
+	url, err := releaseAssetURL(repo, ref)
+	if err != nil {
+		return err
+	}
+	tmp, err := os.MkdirTemp(filepath.Dir(binPath), ".ship-upgrade-*")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.RemoveAll(tmp) }()
+	curl := exec.CommandContext(ctx, "curl", "-fsSL", url)
+	tar := exec.CommandContext(ctx, "tar", "-xz", "-C", tmp, "ship")
+	pipe, err := curl.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	curl.Stderr = os.Stderr
+	tar.Stdin = pipe
+	tar.Stdout = os.Stdout
+	tar.Stderr = os.Stderr
+	if err := curl.Start(); err != nil {
+		return err
+	}
+	if err := tar.Start(); err != nil {
+		return err
+	}
+	curlErr := curl.Wait()
+	tarErr := tar.Wait()
+	if curlErr != nil {
+		return fmt.Errorf("download ship release asset: %w", curlErr)
+	}
+	if tarErr != nil {
+		return fmt.Errorf("extract ship release asset: %w", tarErr)
+	}
+	assetPath := filepath.Join(tmp, "ship")
+	if err := os.Chmod(assetPath, 0o755); err != nil {
+		return err
+	}
+	if err := os.Rename(assetPath, binPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func confirmInfrastructureUpdate(input *os.File) bool {
+	fmt.Print("Infrastructure may have changed. Update Ship infrastructure now? [y/N]: ")
+	answer, err := bufio.NewReader(input).ReadString('\n')
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "y", "yes":
+		return true
+	default:
+		return false
+	}
+}
+
+func updateInfrastructure(ctx context.Context, source string) error {
+	deploySystem := filepath.Join(source, "deploy-system")
+	if err := runInDir(ctx, deploySystem, "./deploy-domain.sh"); err != nil {
+		return err
+	}
+	return runInDir(ctx, deploySystem, "./deploy-dashboard.sh")
+}

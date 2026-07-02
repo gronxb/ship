@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build CLI archives
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -eu
+          mkdir -p dist
+          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
+            os="${target%/*}"
+            arch="${target#*/}"
+            name="ship_${VERSION}_${os}_${arch}"
+            GOOS="$os" GOARCH="$arch" go build \
+              -ldflags "-X main.version=${VERSION} -X main.sourceRef=${VERSION}" \
+              -o "dist/${name}/ship" ./cmd/ship
+            tar -czf "dist/${name}.tar.gz" -C "dist/${name}" ship
+          done
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          gh release create "$VERSION" dist/*.tar.gz \
+            --title "$VERSION" \
+            --generate-notes
