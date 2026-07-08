@@ -94,6 +94,7 @@ func runDeploy(ctx context.Context, args []string) error {
 	opts.CloudflareAccountID = configDefault(config, "CLOUDFLARE_ACCOUNT_ID", configDefault(config, "CF_ACCOUNT_ID", ""))
 	opts.CloudflareTunnelID = configDefault(config, "CLOUDFLARE_TUNNEL_ID", "")
 	opts.ShipCommand = configDefault(config, "SHIP_BIN", "ship")
+	opts.DashboardService = configDefault(config, "SHIP_DASHBOARD_SERVICE", "k8s")
 
 	if err := flags.Parse(args); err != nil {
 		return err

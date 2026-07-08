@@ -10,6 +10,10 @@ import { execFileAsync } from "./deployment-command"
 import { gatewayNamespace, tailscaleGatewayName } from "./deployment-config"
 import { resolveIPv4 } from "./deployment-dns"
 import { readMergedDeployments } from "./deployment-state"
+import {
+  dashboardHostFromRequest,
+  isDashboardDeployment,
+} from "./deployment-visibility"
 
 const exposureUpdate = z.object({
   namespace: z
@@ -21,6 +25,8 @@ const exposureUpdate = z.object({
 })
 
 const cloudflareTunnelSetupCommand = "ship install"
+const dashboardInternetExposureError =
+  "Ship dashboard cannot be exposed to the internet; keep it on Tailscale"
 const dnsPropagationResolvers = ["1.1.1.1", "8.8.8.8", "9.9.9.9"] as const
 
 class DNSPropagationError extends Error {
@@ -28,10 +34,6 @@ class DNSPropagationError extends Error {
     super(message)
     this.name = "DNSPropagationError"
   }
-}
-
-export async function listDeployments(): Promise<Response> {
-  return Response.json({ deployments: await readMergedDeployments() })
 }
 
 export async function changeDeploymentExposure(
@@ -65,6 +67,15 @@ export async function changeDeploymentExposure(
   })
   if (!deployment) {
     return Response.json({ error: "deployment not found" }, { status: 404 })
+  }
+  if (
+    exposure === "internet" &&
+    isDashboardDeployment(deployment, dashboardHostFromRequest(request))
+  ) {
+    return Response.json(
+      { error: dashboardInternetExposureError },
+      { status: 409 }
+    )
   }
   if (exposure === "tailscale") {
     if (deployment.tailscaleOnly) {

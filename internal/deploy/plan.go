@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const dashboardInternetExposureError = "Ship dashboard cannot be exposed to the internet; keep it on Tailscale"
+
 func Plan(opts Options) (Result, error) {
 	opts = withDefaults(opts)
 	if err := validate(opts); err != nil {
@@ -161,6 +163,9 @@ func validate(opts Options) error {
 	case "tailscale", "internet":
 	default:
 		return errors.New("exposure must be tailscale or internet")
+	}
+	if opts.Exposure == "internet" && opts.DashboardService != "" && opts.ServiceName == opts.DashboardService {
+		return errors.New(dashboardInternetExposureError)
 	}
 	switch opts.DNSMode {
 	case "manual", "auto", "cloudflare":

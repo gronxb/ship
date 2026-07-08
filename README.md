@@ -90,7 +90,7 @@ TAILSCALE_CLIENT_SECRET=your-tailscale-client-secret
 # CLOUDFLARE_ACCOUNT_ID=your-cloudflare-account-id
 # CLOUDFLARE_ZONE_ID=your-cloudflare-zone-id
 
-# Optional dashboard service name.
+# Optional dashboard service name. The dashboard always stays Tailscale-only.
 # Defaults to k8s, which gives you k8s.your-domain.com.
 # SHIP_DASHBOARD_SERVICE=ops
 ```
@@ -224,9 +224,11 @@ Ship is private by default:
 - Dockerfile projects do not need host port mapping.
 
 `ship install` also creates a Cloudflare Tunnel connector in the cluster. It
-does not make every service public. When you expose one service publicly, Ship
-keeps the same hostname and adds a more specific proxied Cloudflare CNAME for
-that service:
+does not make every service public. Internet exposure is a promotion path for a
+service that already exists on the Tailscale route; a first deploy directly to
+the internet is rejected. When you expose one service publicly, Ship keeps the
+same hostname and adds a more specific proxied Cloudflare CNAME for that
+service:
 
 - private default: `demo.your-domain.com` → wildcard DNS-only record →
   Tailscale Gateway
@@ -235,9 +237,16 @@ that service:
 - private again: Ship removes the specific CNAME and tunnel route, so the
   wildcard Tailscale route works again
 
-To expose one service publicly from the CLI:
+The Ship dashboard itself is never eligible for internet exposure. That rule is
+based on the configured dashboard service/host, not on the literal service name
+`k8s`: if you set `SHIP_DASHBOARD_SERVICE=ops`, `ops.your-domain.com` remains
+Tailscale-only too.
+
+To expose one non-dashboard service publicly from the CLI, deploy it on
+Tailscale first, then promote the existing service:
 
 ```sh
+ship --service demo
 ship --service demo --exposure internet
 ```
 

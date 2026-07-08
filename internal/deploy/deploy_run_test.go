@@ -32,3 +32,34 @@ func TestRunDryRunTextIncludesCommands(t *testing.T) {
 		}
 	}
 }
+
+func TestRequireExistingTailscaleDeploymentAllowsTailscaleHTTPRoute(t *testing.T) {
+	dir := t.TempDir()
+	writeDeployExecutable(t, filepath.Join(dir, "kubectl"), "printf '%s' "+shellQuote(`{"metadata":{"labels":{"ship.local/exposure":"tailscale"}}}`)+"\n")
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	err := requireExistingTailscaleDeployment(context.Background(), Result{
+		ServiceName: "demo",
+		Namespace:   "ship-services",
+	})
+	if err != nil {
+		t.Fatalf("expected tailscale HTTPRoute to allow internet exposure: %v", err)
+	}
+}
+
+func TestRequireExistingTailscaleDeploymentRejectsInternetHTTPRoute(t *testing.T) {
+	dir := t.TempDir()
+	writeDeployExecutable(t, filepath.Join(dir, "kubectl"), "printf '%s' "+shellQuote(`{"metadata":{"labels":{"ship.local/exposure":"internet"}}}`)+"\n")
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	err := requireExistingTailscaleDeployment(context.Background(), Result{
+		ServiceName: "demo",
+		Namespace:   "ship-services",
+	})
+	if err == nil {
+		t.Fatal("expected internet-labelled HTTPRoute to be rejected")
+	}
+	if !strings.Contains(err.Error(), "current exposure is internet") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

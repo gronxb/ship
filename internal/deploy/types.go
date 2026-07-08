@@ -27,6 +27,7 @@ type Options struct {
 	CloudflareAccountID string
 	CloudflareTunnelID  string
 	ShipCommand         string
+	DashboardService    string
 }
 
 type Result struct {

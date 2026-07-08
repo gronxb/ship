@@ -25,6 +25,7 @@ export const internetGatewayName = configValue(
   "ship-internet"
 )
 export const domain = configValue("SHIP_DOMAIN", "example.com")
+export const dashboardHost = configValue("SHIP_DASHBOARD_HOST", "")
 
 function configValue(name: string, fallback: string): string {
   return process.env[name] || shipConfig[name] || fallback

@@ -2,11 +2,47 @@ package deploy
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 )
+
+const internetExposureRequiresTailscaleDeployment = "internet exposure requires an existing Tailscale deployment; deploy with --exposure tailscale first"
+
+type httpRouteState struct {
+	Metadata struct {
+		Labels map[string]string `json:"labels"`
+	} `json:"metadata"`
+}
+
+func requireExistingTailscaleDeployment(ctx context.Context, result Result) error {
+	output, err := exec.CommandContext(ctx, "kubectl", "get", "httproute", result.ServiceName, "-n", result.Namespace, "-o", "json").Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			stderr := strings.TrimSpace(string(exitErr.Stderr))
+			if stderr == "" {
+				return fmt.Errorf("%s: read existing HTTPRoute %s/%s: %w", internetExposureRequiresTailscaleDeployment, result.Namespace, result.ServiceName, err)
+			}
+			return fmt.Errorf("%s: read existing HTTPRoute %s/%s: %s: %w", internetExposureRequiresTailscaleDeployment, result.Namespace, result.ServiceName, stderr, err)
+		}
+		return fmt.Errorf("%s: read existing HTTPRoute %s/%s: %w", internetExposureRequiresTailscaleDeployment, result.Namespace, result.ServiceName, err)
+	}
+	var route httpRouteState
+	if err := json.Unmarshal(output, &route); err != nil {
+		return fmt.Errorf("%s: parse existing HTTPRoute %s/%s: %w", internetExposureRequiresTailscaleDeployment, result.Namespace, result.ServiceName, err)
+	}
+	if route.Metadata.Labels["ship.local/exposure"] == "tailscale" || route.Metadata.Labels["ship.local/tailscale-only"] == "true" {
+		return nil
+	}
+	if exposure := route.Metadata.Labels["ship.local/exposure"]; exposure != "" {
+		return fmt.Errorf("%s: current exposure is %s", internetExposureRequiresTailscaleDeployment, exposure)
+	}
+	return fmt.Errorf("%s: existing HTTPRoute %s/%s is not labelled as Tailscale exposure", internetExposureRequiresTailscaleDeployment, result.Namespace, result.ServiceName)
+}
 
 func Apply(ctx context.Context, result Result, opts Options) error {
 	if err := runCommand(ctx, "docker", "build", "-f", result.DockerfilePath, "-t", result.Image, result.ContextDir); err != nil {

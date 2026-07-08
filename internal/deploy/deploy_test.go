@@ -103,6 +103,28 @@ func TestPlanBuildsInternetRoute(t *testing.T) {
 	}
 }
 
+func TestPlanAllowsK8sInternetRouteWhenDashboardServiceIsConfiguredElsewhere(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM busybox\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Plan(Options{
+		ServiceName:      "k8s",
+		CWD:              dir,
+		Exposure:         "internet",
+		DryRun:           true,
+		DashboardService: "ops",
+		ImageTag:         "test",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Exposure != "internet" {
+		t.Fatalf("unexpected exposure %q", result.Exposure)
+	}
+}
+
 func TestPlanUsesConfiguredDomainAndImagePrefix(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM busybox\n"), 0o644); err != nil {

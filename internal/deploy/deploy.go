@@ -12,6 +12,11 @@ func Run(ctx context.Context, opts Options, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if !opts.DryRun && result.Exposure == "internet" {
+		if err := requireExistingTailscaleDeployment(ctx, result); err != nil {
+			return err
+		}
+	}
 	if err := writeResult(out, result, opts.JSON, opts.DryRun); err != nil {
 		return err
 	}

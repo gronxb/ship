@@ -1,14 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import {
-  changeDeploymentExposure,
-  listDeployments,
-} from "@/lib/deployment-handlers"
+import { changeDeploymentExposure } from "@/lib/deployment-handlers"
+import { listDeployments } from "@/lib/deployment-list-handler"
 
 export const Route = createFileRoute("/api/deployments")({
   server: {
     handlers: {
-      GET: listDeployments,
+      GET: ({ request }) => listDeployments(request),
       PATCH: ({ request }) => changeDeploymentExposure(request),
     },
   },
