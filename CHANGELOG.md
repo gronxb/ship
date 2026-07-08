@@ -7,6 +7,8 @@ once tagged releases begin.
 
 ## Unreleased
 
+## 0.1.7 - 2026-07-09
+
 ### Added
 
 - Read-only dashboard for deployed container cards, network requests, terminal
