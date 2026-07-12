@@ -38,5 +38,6 @@ ship --service <service> --cwd <project-dir>
 - Do not invent domain, namespace, gateway, registry, or cluster values. Let `ship` read `~/.config/ship/config.env`, environment variables, and CLI defaults.
 - Use `--env-file` only when the user names an env file or the project has a clear deployment env file such as `.env.production`.
 - Use `--exposure internet` only when the user explicitly asks for public internet exposure.
+- When redeploying an existing service, omit `--exposure` to preserve its current network path automatically.
 - If you created a `Dockerfile`, mention that in the final report.
 - Keep deployment output concise: service, host, image, namespace, and verification command result.

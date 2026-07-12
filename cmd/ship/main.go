@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 
@@ -106,8 +108,41 @@ func runDeploy(ctx context.Context, args []string) error {
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected positional arguments: %v", flags.Args())
 	}
+	if !flagProvided(flags, "exposure") {
+		if err := preserveExistingExposure(ctx, &opts); err != nil {
+			return err
+		}
+	}
 
 	return deploy.Run(ctx, opts, os.Stdout)
+}
+
+func flagProvided(flags *flag.FlagSet, name string) bool {
+	provided := false
+	flags.Visit(func(current *flag.Flag) {
+		if current.Name == name {
+			provided = true
+		}
+	})
+	return provided
+}
+
+func preserveExistingExposure(ctx context.Context, opts *deploy.Options) error {
+	if opts.ServiceName == "" {
+		return nil
+	}
+	exposure, err := deploy.CurrentExposure(ctx, opts.ServiceName, opts.Namespace)
+	if err != nil {
+		if errors.Is(err, deploy.ErrHTTPRouteNotFound) || errors.Is(err, exec.ErrNotFound) {
+			return nil
+		}
+		if opts.DryRun {
+			return nil
+		}
+		return err
+	}
+	opts.Exposure = exposure
+	return nil
 }
 
 func configDefault(config map[string]string, name string, fallback string) string {

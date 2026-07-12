@@ -12,36 +12,68 @@ import (
 
 const internetExposureRequiresTailscaleDeployment = "internet exposure requires an existing Tailscale deployment; deploy with --exposure tailscale first"
 
+var ErrHTTPRouteNotFound = errors.New("existing HTTPRoute not found")
+
 type httpRouteState struct {
 	Metadata struct {
 		Labels map[string]string `json:"labels"`
 	} `json:"metadata"`
 }
 
+func CurrentExposure(ctx context.Context, serviceName string, namespace string) (string, error) {
+	route, err := readHTTPRouteState(ctx, serviceName, namespace)
+	if err != nil {
+		return "", err
+	}
+	if route.Metadata.Labels["ship.local/exposure"] == "internet" {
+		return "internet", nil
+	}
+	if route.Metadata.Labels["ship.local/exposure"] == "tailscale" || route.Metadata.Labels["ship.local/tailscale-only"] == "true" {
+		return "tailscale", nil
+	}
+	if exposure := route.Metadata.Labels["ship.local/exposure"]; exposure != "" {
+		return "", fmt.Errorf("read existing HTTPRoute %s/%s: unsupported exposure label %q", namespace, serviceName, exposure)
+	}
+	return "", fmt.Errorf("read existing HTTPRoute %s/%s: missing exposure labels; rerun with --exposure tailscale or --exposure internet", namespace, serviceName)
+}
+
 func requireExistingTailscaleDeployment(ctx context.Context, result Result) error {
-	output, err := exec.CommandContext(ctx, "kubectl", "get", "httproute", result.ServiceName, "-n", result.Namespace, "-o", "json").Output()
+	exposure, err := CurrentExposure(ctx, result.ServiceName, result.Namespace)
+	if err != nil {
+		return fmt.Errorf("%s: %w", internetExposureRequiresTailscaleDeployment, err)
+	}
+	if exposure == "tailscale" {
+		return nil
+	}
+	return fmt.Errorf("%s: current exposure is %s", internetExposureRequiresTailscaleDeployment, exposure)
+}
+
+func readHTTPRouteState(ctx context.Context, serviceName string, namespace string) (httpRouteState, error) {
+	output, err := exec.CommandContext(ctx, "kubectl", "get", "httproute", serviceName, "-n", namespace, "-o", "json").Output()
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			stderr := strings.TrimSpace(string(exitErr.Stderr))
-			if stderr == "" {
-				return fmt.Errorf("%s: read existing HTTPRoute %s/%s: %w", internetExposureRequiresTailscaleDeployment, result.Namespace, result.ServiceName, err)
+			if isHTTPRouteNotFound(stderr) {
+				return httpRouteState{}, fmt.Errorf("%w: %s/%s", ErrHTTPRouteNotFound, namespace, serviceName)
 			}
-			return fmt.Errorf("%s: read existing HTTPRoute %s/%s: %s: %w", internetExposureRequiresTailscaleDeployment, result.Namespace, result.ServiceName, stderr, err)
+			if stderr == "" {
+				return httpRouteState{}, fmt.Errorf("read existing HTTPRoute %s/%s: %w", namespace, serviceName, err)
+			}
+			return httpRouteState{}, fmt.Errorf("read existing HTTPRoute %s/%s: %s: %w", namespace, serviceName, stderr, err)
 		}
-		return fmt.Errorf("%s: read existing HTTPRoute %s/%s: %w", internetExposureRequiresTailscaleDeployment, result.Namespace, result.ServiceName, err)
+		return httpRouteState{}, fmt.Errorf("read existing HTTPRoute %s/%s: %w", namespace, serviceName, err)
 	}
 	var route httpRouteState
 	if err := json.Unmarshal(output, &route); err != nil {
-		return fmt.Errorf("%s: parse existing HTTPRoute %s/%s: %w", internetExposureRequiresTailscaleDeployment, result.Namespace, result.ServiceName, err)
+		return httpRouteState{}, fmt.Errorf("parse existing HTTPRoute %s/%s: %w", namespace, serviceName, err)
 	}
-	if route.Metadata.Labels["ship.local/exposure"] == "tailscale" || route.Metadata.Labels["ship.local/tailscale-only"] == "true" {
-		return nil
-	}
-	if exposure := route.Metadata.Labels["ship.local/exposure"]; exposure != "" {
-		return fmt.Errorf("%s: current exposure is %s", internetExposureRequiresTailscaleDeployment, exposure)
-	}
-	return fmt.Errorf("%s: existing HTTPRoute %s/%s is not labelled as Tailscale exposure", internetExposureRequiresTailscaleDeployment, result.Namespace, result.ServiceName)
+	return route, nil
+}
+
+func isHTTPRouteNotFound(stderr string) bool {
+	lowered := strings.ToLower(stderr)
+	return strings.Contains(lowered, "(notfound)") || strings.Contains(lowered, " not found")
 }
 
 func Apply(ctx context.Context, result Result, opts Options) error {

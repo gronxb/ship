@@ -6,6 +6,20 @@ The format follows Keep a Changelog and the project uses semantic versioning
 once tagged releases begin.
 
 ## Unreleased
+## 0.1.9 - 2026-07-12
+
+### Fixed
+
+- Preserve the current network exposure on redeploys: services already routed
+  through the internet stay on the internet path, and Tailscale services stay
+  Tailscale-only unless `--exposure` is passed explicitly.
+- Reuse existing HTTPRoute exposure labels during redeploy preflight, including
+  legacy `ship.local/tailscale-only=true` routes.
+
+### Docs
+
+- Document automatic exposure preservation for redeploys in the README and Ship
+  agent skill guidance.
 
 ## 0.1.8 - 2026-07-12
 

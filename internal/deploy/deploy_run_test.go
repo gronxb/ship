@@ -3,6 +3,7 @@ package deploy
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,5 +62,29 @@ func TestRequireExistingTailscaleDeploymentRejectsInternetHTTPRoute(t *testing.T
 	}
 	if !strings.Contains(err.Error(), "current exposure is internet") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+func TestCurrentExposureAllowsLegacyTailscaleLabel(t *testing.T) {
+	dir := t.TempDir()
+	writeDeployExecutable(t, filepath.Join(dir, "kubectl"), "printf '%s' "+shellQuote(`{"metadata":{"labels":{"ship.local/tailscale-only":"true"}}}`)+"\n")
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	exposure, err := CurrentExposure(context.Background(), "demo", "ship-services")
+	if err != nil {
+		t.Fatalf("expected legacy tailscale label to resolve exposure: %v", err)
+	}
+	if exposure != "tailscale" {
+		t.Fatalf("unexpected exposure %q", exposure)
+	}
+}
+
+func TestCurrentExposureReturnsNotFound(t *testing.T) {
+	dir := t.TempDir()
+	writeDeployExecutable(t, filepath.Join(dir, "kubectl"), "printf 'Error from server (NotFound): httproutes.gateway.networking.k8s.io \"demo\" not found\n' >&2\nexit 1\n")
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	_, err := CurrentExposure(context.Background(), "demo", "ship-services")
+	if !errors.Is(err, ErrHTTPRouteNotFound) {
+		t.Fatalf("expected HTTPRoute not found error, got: %v", err)
 	}
 }

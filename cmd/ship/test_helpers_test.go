@@ -15,12 +15,15 @@ func clearShipEnv(t *testing.T) {
 		"CF_API_TOKEN",
 		"CLOUDFLARE_ACCOUNT_ID",
 		"CF_ACCOUNT_ID",
+		"CLOUDFLARE_ZONE_ID",
+		"CF_ZONE_ID",
 		"CLOUDFLARE_TUNNEL_ID",
 		"SHIP_CLOUDFLARE_TUNNEL_NAME",
 		"TAILSCALE_CLIENT_ID",
 		"TAILSCALE_CLIENT_SECRET",
 		"SHIP_DNS",
 		"SHIP_DASHBOARD_SERVICE",
+		"SHIP_EXPOSURE",
 		"SHIP_IMAGE_PREFIX",
 		"SHIP_BIN",
 		"SHIP_CONFIG",
@@ -68,6 +71,11 @@ func withStdout(t *testing.T, writer io.Writer, run func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	copyErr := make(chan error, 1)
+	go func() {
+		_, err := io.Copy(writer, reader)
+		copyErr <- err
+	}()
 	os.Stdout = pipeWriter
 	defer func() {
 		os.Stdout = original
@@ -78,7 +86,7 @@ func withStdout(t *testing.T, writer io.Writer, run func()) {
 	if err := pipeWriter.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := io.Copy(writer, reader); err != nil {
+	if err := <-copyErr; err != nil {
 		t.Fatal(err)
 	}
 	if err := reader.Close(); err != nil {

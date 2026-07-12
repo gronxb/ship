@@ -55,6 +55,64 @@ func TestRunDeployRejectsConfiguredDashboardInternetExposure(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
+func TestRunDeployDryRunPreservesExistingInternetExposure(t *testing.T) {
+	clearShipEnv(t)
+	dir := t.TempDir()
+	project := filepath.Join(dir, "project")
+	binDir := filepath.Join(dir, "bin")
+	writeFile(t, filepath.Join(project, "Dockerfile"), "FROM busybox\n")
+	writeFile(t, filepath.Join(binDir, "kubectl"), "#!/bin/sh\nprintf '%s' "+shellQuote(`{"metadata":{"labels":{"ship.local/exposure":"internet"}}}`)+"\n")
+	if err := os.Chmod(filepath.Join(binDir, "kubectl"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	var output bytes.Buffer
+	withStdout(t, &output, func() {
+		if err := run(context.Background(), []string{"--service", "demo", "--cwd", project, "--dry-run", "--json"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(output.String(), `"exposure": "internet"`) {
+		t.Fatalf("deploy dry-run should preserve internet exposure:\n%s", output.String())
+	}
+}
+
+func TestRunDeployDryRunPreservesExistingTailscaleExposure(t *testing.T) {
+	clearShipEnv(t)
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.env")
+	project := filepath.Join(dir, "project")
+	binDir := filepath.Join(dir, "bin")
+	writeFile(t, filepath.Join(project, "Dockerfile"), "FROM busybox\nEXPOSE 3131\n")
+	writeFile(t, configPath, strings.Join([]string{
+		"SHIP_DOMAIN=example.com",
+		"SHIP_DNS=cloudflare",
+		"SHIP_EXPOSURE=internet",
+	}, "\n")+"\n")
+	t.Setenv("SHIP_CONFIG", configPath)
+	writeFile(t, filepath.Join(binDir, "kubectl"), "#!/bin/sh\nprintf '%s' "+shellQuote(`{"metadata":{"labels":{"ship.local/exposure":"tailscale"}}}`)+"\n")
+	if err := os.Chmod(filepath.Join(binDir, "kubectl"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	var output bytes.Buffer
+	withStdout(t, &output, func() {
+		if err := run(context.Background(), []string{"--service", "demo", "--cwd", project, "--dry-run", "--json"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(output.String(), `"exposure": "tailscale"`) {
+		t.Fatalf("deploy dry-run should preserve tailscale exposure:\n%s", output.String())
+	}
+	if !strings.Contains(output.String(), "'ship' dns publish --record 'demo.example.com'") {
+		t.Fatalf("tailscale redeploy should keep service DNS reconcile:\n%s", output.String())
+	}
+	if strings.Contains(output.String(), "cloudflare tunnel expose demo.example.com") {
+		t.Fatalf("tailscale redeploy should not plan internet tunnel exposure:\n%s", output.String())
+	}
+}
 
 func TestRunDeployDryRunPlansServiceDNSReconcileWhenCloudflareDNSConfigured(t *testing.T) {
 	clearShipEnv(t)

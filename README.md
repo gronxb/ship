@@ -267,6 +267,10 @@ ship --service demo
 ship --service demo --exposure internet
 ```
 
+Later redeploys keep the current network exposure unless you pass `--exposure`
+explicitly. An internet-exposed service stays on the internet path; a
+Tailscale-only service stays Tailscale-only.
+
 ## Development
 
 Run tests:
