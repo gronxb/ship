@@ -8,7 +8,7 @@ import (
 )
 
 func Run(ctx context.Context, opts Options, out io.Writer) error {
-	result, err := Plan(opts)
+	result, err := PlanContext(ctx, opts)
 	if err != nil {
 		return err
 	}

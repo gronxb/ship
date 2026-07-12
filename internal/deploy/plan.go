@@ -1,6 +1,7 @@
 package deploy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,10 @@ import (
 const dashboardInternetExposureError = "Ship dashboard cannot be exposed to the internet; keep it on Tailscale"
 
 func Plan(opts Options) (Result, error) {
+	return PlanContext(context.Background(), opts)
+}
+
+func PlanContext(ctx context.Context, opts Options) (Result, error) {
 	opts = withDefaults(opts)
 	if err := validate(opts); err != nil {
 		return Result{}, err
@@ -25,9 +30,12 @@ func Plan(opts Options) (Result, error) {
 	info, err := os.Stat(dockerfile)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return Result{}, fmt.Errorf("Dockerfile not found in cwd: %s", dockerfile)
+			return planCompose(ctx, opts, contextDir)
 		}
 		return Result{}, fmt.Errorf("stat Dockerfile: %w", err)
+	}
+	if opts.ComposeFile != "" || opts.ComposeService != "" {
+		return planCompose(ctx, opts, contextDir)
 	}
 	if info.IsDir() {
 		return Result{}, fmt.Errorf("Dockerfile path is a directory: %s", dockerfile)
@@ -55,15 +63,15 @@ func Plan(opts Options) (Result, error) {
 	image := imageName(opts)
 	manifest := manifestFor(opts, host, image)
 	commands := []string{
-		fmt.Sprintf("docker build -f %s -t %s %s", dockerfile, image, contextDir),
+		fmt.Sprintf("docker build -f %s -t %s %s", shellQuote(dockerfile), shellQuote(image), shellQuote(contextDir)),
 		loadOrPushCommand(opts, image),
 	}
 	if envFilePath != "" {
-		commands = append(commands, fmt.Sprintf("kubectl create secret generic %s-env -n %s --from-env-file=%s --dry-run=client -o yaml | kubectl apply -f -", opts.ServiceName, opts.Namespace, envFilePath))
+		commands = append(commands, fmt.Sprintf("kubectl create secret generic %s -n %s %s --dry-run=client -o yaml | kubectl apply -f -", shellQuote(opts.ServiceName+"-env"), shellQuote(opts.Namespace), shellQuote("--from-env-file="+envFilePath)))
 	}
 	commands = append(commands,
 		"kubectl apply -f <generated manifest>",
-		fmt.Sprintf("kubectl rollout status deployment/%s -n %s --timeout=180s", opts.ServiceName, opts.Namespace),
+		fmt.Sprintf("kubectl rollout status %s -n %s --timeout=180s", shellQuote("deployment/"+opts.ServiceName), shellQuote(opts.Namespace)),
 	)
 	if opts.Exposure != "internet" && shouldSyncServiceDNS(opts) {
 		commands = append(commands, serviceDNSCommand(opts, host))
@@ -74,6 +82,7 @@ func Plan(opts Options) (Result, error) {
 
 	return Result{
 		ServiceName:    opts.ServiceName,
+		Runtime:        "dockerfile",
 		Host:           host,
 		Image:          image,
 		Namespace:      opts.Namespace,
@@ -156,6 +165,9 @@ func validate(opts Options) error {
 	case "www", "api", "admin":
 		return fmt.Errorf("reserved service name: %s", opts.ServiceName)
 	}
+	if err := validateManifestOptions(opts); err != nil {
+		return err
+	}
 	if opts.Port < 0 || opts.Port > 65535 {
 		return errors.New("port must be between 0 and 65535")
 	}
@@ -199,9 +211,9 @@ func imageName(opts Options) string {
 
 func loadOrPushCommand(opts Options, image string) string {
 	if opts.Registry != "" {
-		return "docker push " + image
+		return "docker push " + shellQuote(image)
 	}
-	return fmt.Sprintf("kind load docker-image --name %s %s", opts.KindCluster, image)
+	return fmt.Sprintf("kind load docker-image --name %s %s", shellQuote(opts.KindCluster), shellQuote(image))
 }
 
 func shouldSyncServiceDNS(opts Options) bool {

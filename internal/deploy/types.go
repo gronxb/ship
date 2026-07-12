@@ -19,6 +19,8 @@ type Options struct {
 	ImageTag            string
 	KindCluster         string
 	EnvFile             string
+	ComposeFile         string
+	ComposeService      string
 	ServiceAccount      string
 	DNSMode             string
 	CloudflareToken     bool
@@ -31,19 +33,24 @@ type Options struct {
 }
 
 type Result struct {
-	ServiceName    string   `json:"serviceName"`
-	Host           string   `json:"host"`
-	Image          string   `json:"image"`
-	Namespace      string   `json:"namespace"`
-	DockerfilePath string   `json:"dockerfilePath"`
-	ContextDir     string   `json:"contextDir"`
-	EnvFilePath    string   `json:"envFilePath,omitempty"`
-	Port           int      `json:"port"`
-	Exposure       string   `json:"exposure"`
-	TailscaleOnly  bool     `json:"tailscaleOnly"`
-	DryRun         bool     `json:"dryRun"`
-	Commands       []string `json:"commands"`
-	Manifest       string   `json:"manifest"`
+	ServiceName     string   `json:"serviceName"`
+	Runtime         string   `json:"runtime"`
+	Host            string   `json:"host"`
+	Image           string   `json:"image,omitempty"`
+	Namespace       string   `json:"namespace"`
+	DockerfilePath  string   `json:"dockerfilePath,omitempty"`
+	ComposeFilePath string   `json:"composeFilePath,omitempty"`
+	ComposeService  string   `json:"composeService,omitempty"`
+	PublishedPort   int      `json:"publishedPort,omitempty"`
+	HostGateway     string   `json:"hostGateway,omitempty"`
+	ContextDir      string   `json:"contextDir"`
+	EnvFilePath     string   `json:"envFilePath,omitempty"`
+	Port            int      `json:"port"`
+	Exposure        string   `json:"exposure"`
+	TailscaleOnly   bool     `json:"tailscaleOnly"`
+	DryRun          bool     `json:"dryRun"`
+	Commands        []string `json:"commands"`
+	Manifest        string   `json:"manifest"`
 }
 
 var serviceNamePattern = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)

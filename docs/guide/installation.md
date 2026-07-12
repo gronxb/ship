@@ -73,6 +73,19 @@ ship --service demo
 Ship creates a `Deployment`, `Service`, and `HTTPRoute` for
 `https://demo.mydomain.com`.
 
+For a Docker Compose project, run the same command from a directory with a
+canonical Compose file, or select the source and routed service explicitly:
+
+```sh
+ship --service demo --compose-file ./docker-compose.yml --compose-service gateway --env-file ./.env
+```
+
+Ship keeps Compose on the local host and creates a selectorless `Service`, an
+`EndpointSlice`, and an `HTTPRoute`. The selected service must publish a TCP
+port on a non-loopback host address. Compose deployment currently requires the
+active Kubernetes context to be the configured local kind cluster. Ship leaves
+the Compose project name and persistent volumes under Compose ownership.
+
 ## For LLM Agents
 
 Ship is designed so an LLM agent can complete the install end to end once the
@@ -276,7 +289,7 @@ Then check the real surface:
 curl -I https://k8s.mydomain.com
 ```
 
-For a dry-run deployment from any Dockerfile project:
+For a dry-run deployment from any Dockerfile or Compose project:
 
 ```sh
 ship --service demo --dry-run --json

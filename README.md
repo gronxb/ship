@@ -2,7 +2,7 @@
 
 ![Ship dashboard demo](docs/assets/ship-dashboard-demo-preview.png)
 
-Ship turns any local project with a `Dockerfile` into a Kubernetes service under
+Ship turns a local `Dockerfile` or Docker Compose project into a service under
 `*.your-domain.com`. It is built for small self-hosted clusters, Mac mini
 homelabs, and teams that want a thin deployment path without introducing a full
 PaaS.
@@ -148,8 +148,8 @@ Work from the project root and do the following:
    failed with its relevant output.
 ```
 
-Ship can deploy any project that has a `Dockerfile`; the framework and runtime
-are up to you. This example uses a Hono hello-world app on Bun. Hono is a small
+Ship can deploy any project with either a `Dockerfile` or Docker Compose. The
+framework and runtime are up to you. This example uses a Hono hello-world app on Bun. Hono is a small
 web framework for the Web Platform, and its
 [Bun guide](https://hono.dev/docs/getting-started/bun) starts from the same tiny
 app shape.
@@ -195,6 +195,22 @@ ship --service demo
 Open `https://demo.your-domain.com` to see `Hello Ship!`. For your own app, keep
 the same pattern: add a `Dockerfile`, then run `ship --service <name>`.
 
+For a multi-container Compose project, Ship auto-detects `compose.yaml`,
+`compose.yml`, `docker-compose.yaml`, or `docker-compose.yml` when no Dockerfile
+exists. A service named `gateway` is selected automatically; otherwise use an
+explicit service that publishes a TCP port:
+
+```sh
+ship --service demo --compose-file ./docker-compose.yml --compose-service gateway --env-file ./.env
+```
+
+Compose stays on the host. Ship runs `docker compose up --wait` and connects the
+selected published port to the cluster with a selectorless Service and managed
+EndpointSlice. Compose files are trusted executable input. Ship never copies a
+Compose env file into a Kubernetes Secret, never overrides the Compose project
+name, and never removes Compose volumes. This host bridge currently requires a
+local kind cluster.
+
 ## Agent Skill
 
 Install the Ship skill once:
@@ -210,8 +226,8 @@ skill:
 $ship deploy this project as demo
 ```
 
-That is enough. The skill can create a suitable `Dockerfile` when the project
-does not have one, deploy with Ship, and give you
+That is enough. The skill uses an existing Compose project when present or can
+create a suitable `Dockerfile`, deploy with Ship, and give you
 `https://demo.your-domain.com`.
 
 ## Exposure Model
@@ -222,6 +238,7 @@ Ship is private by default:
   DNS-only Cloudflare record.
 - only devices in your tailnet can reach deployed services.
 - Dockerfile projects do not need host port mapping.
+- Compose projects must publish the selected service port on a non-loopback host address.
 
 `ship install` also creates a Cloudflare Tunnel connector in the cluster. It
 does not make every service public. Internet exposure is a promotion path for a

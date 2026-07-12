@@ -202,6 +202,39 @@ func TestPlanMountsEnvFileAsSecretReference(t *testing.T) {
 	}
 }
 
+func TestPlanQuotesDockerfilePreviewArguments(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "project;touch-preview-owned")
+	if err := os.Mkdir(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dockerfile := filepath.Join(dir, "Dockerfile")
+	if err := os.WriteFile(dockerfile, []byte("FROM busybox\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	envFile := filepath.Join(dir, "config;cat-preview-owned.env")
+	if err := os.WriteFile(envFile, []byte("VALUE=safe\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := Plan(Options{
+		ServiceName: "demo",
+		CWD:         dir,
+		EnvFile:     envFile,
+		ImagePrefix: "registry.example/team;echo-preview-owned",
+		ImageTag:    "test",
+		KindCluster: "ship;echo-preview-owned",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	commands := strings.Join(result.Commands, "\n")
+	for _, value := range []string{dockerfile, dir, "--from-env-file=" + envFile, result.Image, "ship;echo-preview-owned"} {
+		if !strings.Contains(commands, shellQuote(value)) {
+			t.Fatalf("preview does not quote %q:\n%s", value, commands)
+		}
+	}
+}
+
 func TestPlanUsesConfiguredServiceAccount(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "Dockerfile"), []byte("FROM busybox\n"), 0o644); err != nil {

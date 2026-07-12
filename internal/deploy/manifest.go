@@ -54,7 +54,7 @@ spec:
 %s
       containers:
         - name: app
-          image: %s
+          image: %q
           imagePullPolicy: IfNotPresent
 %s
           ports:

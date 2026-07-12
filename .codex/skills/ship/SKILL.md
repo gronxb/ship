@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Use when the user asks to deploy the current project with Ship, usually as "$ship deploy this project as <service>". Prepares the project, creates a Dockerfile when needed, runs a dry-run first, then deploys after the plan is valid.
+description: Use when the user asks to deploy the current project with Ship, usually as "$ship deploy this project as <service>". Uses Docker Compose when present or prepares a Dockerfile, runs a dry-run first, then deploys after the plan is valid.
 ---
 
 # Ship
@@ -11,7 +11,7 @@ Deploy a local project with the `ship` CLI.
 
 1. Identify the target project directory.
 2. Derive the service name from the user request. If absent, use the current directory name normalized to DNS-safe lowercase.
-3. If the project has no `Dockerfile`, inspect the project and create a minimal suitable one using its existing runtime, lockfile, package manager, build script, and start command. If the runtime cannot be inferred safely, stop and report the missing information.
+3. Prefer an existing `Dockerfile`. When no Dockerfile exists, use an existing canonical Compose file. Create a minimal Dockerfile only when neither source exists and the runtime can be inferred safely.
 4. Run the dry-run first:
 
 ```sh
@@ -25,11 +25,15 @@ ship --service <service> --cwd <project-dir> --dry-run --json
 ship --service <service> --cwd <project-dir>
 ```
 
-7. Verify with the rollout command from the plan, then report the deployed host.
+7. Verify Dockerfile deployments with the rollout command from the plan. Verify Compose deployments with `docker compose ps`, the managed Service/EndpointSlice/HTTPRoute, and the deployed host.
 
 ## Rules
 
 - Prefer an existing `Dockerfile`; do not overwrite it unless the user explicitly asks.
+- For Compose, prefer auto-detection and the `gateway` service. Use `--compose-file` or `--compose-service` when the project is non-canonical or ambiguous.
+- Compose deployments currently require the configured local kind cluster. Do not attempt the host bridge against a remote Kubernetes context.
+- Treat Compose files as trusted executable input. Do not render resolved Compose config or copy Compose env values into Kubernetes.
+- Preserve Compose-owned project names, containers, and volumes. Never add `-p`, `down`, or volume deletion as an implicit deployment step.
 - Keep generated Dockerfiles minimal and conventional. Use detected project commands instead of adding new dependencies.
 - Do not invent domain, namespace, gateway, registry, or cluster values. Let `ship` read `~/.config/ship/config.env`, environment variables, and CLI defaults.
 - Use `--env-file` only when the user names an env file or the project has a clear deployment env file such as `.env.production`.

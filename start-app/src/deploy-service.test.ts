@@ -53,7 +53,7 @@ describe("ship dry-run", () => {
 
       expect(result.host).toBe("demo.example.com")
       expect(result.commands).toContain(
-        `kind load docker-image --name ship ${result.image}`
+        `kind load docker-image --name 'ship' '${result.image}'`
       )
       expect(result.manifest).toContain('ship.local/tailscale-only: "true"')
       expect(result.exposure).toBe("tailscale")

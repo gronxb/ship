@@ -45,35 +45,40 @@ func requireExistingTailscaleDeployment(ctx context.Context, result Result) erro
 }
 
 func Apply(ctx context.Context, result Result, opts Options) error {
-	if err := runCommand(ctx, "docker", "build", "-f", result.DockerfilePath, "-t", result.Image, result.ContextDir); err != nil {
-		return err
-	}
-	if opts.Registry == "" {
-		if err := runCommand(ctx, "kind", "load", "docker-image", "--name", opts.KindCluster, result.Image); err != nil {
+	if result.Runtime == "compose" {
+		updated, err := applyCompose(ctx, result, opts)
+		if err != nil {
 			return err
 		}
-	} else if err := runCommand(ctx, "docker", "push", result.Image); err != nil {
-		return err
-	}
-	if result.EnvFilePath != "" {
-		if err := applyNamespace(ctx, result.Namespace); err != nil {
+		result = updated
+	} else {
+		if err := rejectComposeRuntimeConflict(ctx, result); err != nil {
 			return err
 		}
-		if err := applyEnvSecret(ctx, result); err != nil {
+		if err := runCommand(ctx, "docker", "build", "-f", result.DockerfilePath, "-t", result.Image, result.ContextDir); err != nil {
 			return err
 		}
-	}
-
-	kubectl := exec.CommandContext(ctx, "kubectl", "apply", "-f", "-")
-	kubectl.Stdin = strings.NewReader(result.Manifest)
-	kubectl.Stdout = os.Stdout
-	kubectl.Stderr = os.Stderr
-	if err := kubectl.Run(); err != nil {
-		return fmt.Errorf("kubectl apply: %w", err)
-	}
-
-	if err := runCommand(ctx, "kubectl", "rollout", "status", "deployment/"+result.ServiceName, "-n", result.Namespace, "--timeout=180s"); err != nil {
-		return err
+		if opts.Registry == "" {
+			if err := runCommand(ctx, "kind", "load", "docker-image", "--name", opts.KindCluster, result.Image); err != nil {
+				return err
+			}
+		} else if err := runCommand(ctx, "docker", "push", result.Image); err != nil {
+			return err
+		}
+		if result.EnvFilePath != "" {
+			if err := applyNamespace(ctx, result.Namespace); err != nil {
+				return err
+			}
+			if err := applyEnvSecret(ctx, result); err != nil {
+				return err
+			}
+		}
+		if err := applyManifest(ctx, result.Manifest); err != nil {
+			return err
+		}
+		if err := runCommand(ctx, "kubectl", "rollout", "status", "deployment/"+result.ServiceName, "-n", result.Namespace, "--timeout=180s"); err != nil {
+			return err
+		}
 	}
 	if result.Exposure == "internet" {
 		if err := ExposeCloudflareTunnelRoute(ctx, TunnelRouteOptions{
@@ -99,6 +104,17 @@ func Apply(ctx context.Context, result Result, opts Options) error {
 		}
 	}
 	fmt.Printf("ok: https://%s routes through the %s Gateway\n", result.Host, result.Exposure)
+	return nil
+}
+
+func applyManifest(ctx context.Context, manifest string) error {
+	kubectl := exec.CommandContext(ctx, "kubectl", "apply", "-f", "-")
+	kubectl.Stdin = strings.NewReader(manifest)
+	kubectl.Stdout = os.Stdout
+	kubectl.Stderr = os.Stderr
+	if err := kubectl.Run(); err != nil {
+		return fmt.Errorf("kubectl apply: %w", err)
+	}
 	return nil
 }
 

@@ -272,9 +272,9 @@ if grep -Fq 'create secret tls wildcard-example-com-tls' "$cloudflare_log"; then
 fi
 grep -Fq 'dry-run: *.example.com CNAME ship-tailscale.tailnet.test proxied=false' "$work/cloudflare-stdout"
 grep -Fq 'docker build -f' "$work/cloudflare-stdout"
-grep -Fq -- '-t ship/ops:' "$work/cloudflare-stdout"
-grep -Fq 'kind load docker-image --name ship ship/ops:' "$work/cloudflare-stdout"
-grep -Fq 'kubectl rollout status deployment/ops -n ship-services --timeout=180s' "$work/cloudflare-stdout"
+grep -Fq -- "-t 'ship/ops:" "$work/cloudflare-stdout"
+grep -Fq "kind load docker-image --name 'ship' 'ship/ops:" "$work/cloudflare-stdout"
+grep -Fq "kubectl rollout status 'deployment/ops' -n 'ship-services' --timeout=180s" "$work/cloudflare-stdout"
 
 PATH="$home/.local/bin:$fakebin:$PATH" \
 HOME="$cloudflare_home" \

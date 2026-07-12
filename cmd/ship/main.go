@@ -42,10 +42,12 @@ Commands:
   dns publish publish a DNS record through Cloudflare
 
 Options:
-  --service <name>   DNS-safe service name
-  --dry-run          print the plan without applying it
-  -v, --version      print version
-  -h, --help         print help
+  --service <name>           DNS-safe service name
+  --compose-file <path>      explicit Compose file
+  --compose-service <name>   Compose service routed by Ship
+  --dry-run                  print the plan without applying it
+  -v, --version              print version
+  -h, --help                 print help
 `)
 			return nil
 		case "-v", "--version", "version":
@@ -71,8 +73,8 @@ func runDeploy(ctx context.Context, args []string) error {
 
 	opts := deploy.Options{}
 	flags.StringVar(&opts.ServiceName, "service", "", "DNS-safe service name")
-	flags.StringVar(&opts.CWD, "cwd", "", "project directory containing Dockerfile")
-	flags.IntVar(&opts.Port, "port", 0, "container HTTP port; defaults to Dockerfile EXPOSE or 8080")
+	flags.StringVar(&opts.CWD, "cwd", "", "project directory containing a Dockerfile or Compose file")
+	flags.IntVar(&opts.Port, "port", 0, "container HTTP port; defaults to Dockerfile EXPOSE, Compose target port 80, or an unambiguous published port")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "print the deployment plan without applying it")
 	flags.BoolVar(&opts.JSON, "json", false, "print JSON output")
 	flags.StringVar(&opts.Namespace, "namespace", configDefault(config, "SHIP_NAMESPACE", "ship-services"), "target Kubernetes namespace")
@@ -85,7 +87,9 @@ func runDeploy(ctx context.Context, args []string) error {
 	flags.StringVar(&opts.Registry, "registry", configDefault(config, "REGISTRY", ""), "optional image registry")
 	flags.StringVar(&opts.ImageTag, "image-tag", configDefault(config, "IMAGE_TAG", ""), "image tag")
 	flags.StringVar(&opts.KindCluster, "kind-cluster", configDefault(config, "KIND_CLUSTER", "ship"), "kind cluster name")
-	flags.StringVar(&opts.EnvFile, "env-file", "", "optional env file to mount as a Kubernetes Secret")
+	flags.StringVar(&opts.EnvFile, "env-file", "", "optional env file; mounted as a Kubernetes Secret for Dockerfiles or passed directly to Compose")
+	flags.StringVar(&opts.ComposeFile, "compose-file", "", "explicit Compose file; auto-detected when no Dockerfile exists")
+	flags.StringVar(&opts.ComposeService, "compose-service", "", "Compose service to route; defaults to gateway or one unambiguous published service")
 	flags.StringVar(&opts.ServiceAccount, "service-account", "", "optional Kubernetes ServiceAccount name for the Deployment")
 	opts.DNSMode = configDefault(config, "SHIP_DNS", "manual")
 	opts.CloudflareAPIKey = cloudflareToken(config)
