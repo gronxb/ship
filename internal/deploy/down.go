@@ -153,14 +153,16 @@ func removeKindImage(ctx context.Context, cluster string, image string) error {
 		return fmt.Errorf("list kind nodes for image cleanup: %w", err)
 	}
 	for _, node := range strings.Fields(string(output)) {
-		present, err := exec.CommandContext(ctx, "docker", "exec", node, "crictl", "inspecti", image).CombinedOutput()
+		state, err := readKindImageState(ctx, node, image)
 		if err != nil {
-			if isMissingImageOutput(present) {
-				continue
-			}
-			return fmt.Errorf("inspect image %s on kind node %s: %w", image, node, err)
+			return err
 		}
-		if err := runCommand(ctx, "docker", "exec", node, "crictl", "rmi", image); err != nil {
+		if state.reference == "" {
+			continue
+		}
+		refs := append([]string{state.reference}, state.importAliases...)
+		args := append([]string{"exec", node, "ctr", "-n", "k8s.io", "images", "rm"}, refs...)
+		if err := runCommand(ctx, "docker", args...); err != nil {
 			return err
 		}
 	}

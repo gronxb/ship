@@ -37,6 +37,9 @@ existing Kubernetes context from a Dockerfile project:
 ship --service demo
 ```
 
+Successful Dockerfile redeployments remove the previous image from the local
+kind cluster and local Docker. The current Deployment image is preserved.
+
 Remove a deployed service and its Ship-managed local image copies:
 
 ```sh

@@ -44,6 +44,8 @@ describe("ship dry-run", () => {
           "demo",
           "--cwd",
           dir,
+          "--exposure",
+          "tailscale",
           "--dry-run",
           "--json",
         ],

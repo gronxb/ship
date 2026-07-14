@@ -6,6 +6,20 @@ The format follows Keep a Changelog and the project uses semantic versioning
 once tagged releases begin.
 
 ## Unreleased
+
+## 0.1.10 - 2026-07-15
+
+### Added
+
+- Add `ship down` to remove a deployed service, its Ship-managed Cloudflare
+  route and DNS record, and its local image copies.
+
+### Fixed
+
+- Remove the previous Dockerfile deployment image from local Docker and kind
+  after a successful rollout, including kind's matching import reference,
+  without removing a current tag that shares the same image content.
+
 ## 0.1.9 - 2026-07-12
 
 ### Fixed

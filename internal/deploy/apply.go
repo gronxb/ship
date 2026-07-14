@@ -87,6 +87,10 @@ func Apply(ctx context.Context, result Result, opts Options) error {
 		if err := rejectComposeRuntimeConflict(ctx, result); err != nil {
 			return err
 		}
+		previousImage, err := currentDeploymentImage(ctx, result.ServiceName, result.Namespace)
+		if err != nil {
+			return err
+		}
 		if err := runCommand(ctx, "docker", "build", "-f", result.DockerfilePath, "-t", result.Image, result.ContextDir); err != nil {
 			return err
 		}
@@ -110,6 +114,16 @@ func Apply(ctx context.Context, result Result, opts Options) error {
 		}
 		if err := runCommand(ctx, "kubectl", "rollout", "status", "deployment/"+result.ServiceName, "-n", result.Namespace, "--timeout=180s"); err != nil {
 			return err
+		}
+		if previousImage != "" && previousImage != result.Image {
+			if opts.Registry == "" {
+				if err := removeKindImage(ctx, opts.KindCluster, previousImage); err != nil {
+					return err
+				}
+			}
+			if err := removeLocalDockerImage(ctx, previousImage); err != nil {
+				return err
+			}
 		}
 	}
 	if result.Exposure == "internet" {

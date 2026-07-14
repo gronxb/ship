@@ -195,6 +195,10 @@ ship --service demo
 Open `https://demo.your-domain.com` to see `Hello Ship!`. For your own app, keep
 the same pattern: add a `Dockerfile`, then run `ship --service <name>`.
 
+After a successful Dockerfile rollout, Ship removes the previous deployment
+image from the local kind cluster and local Docker while keeping the current
+image. This prevents timestamped deployment images from accumulating.
+
 Bring the service down when it is no longer needed:
 
 ```sh
