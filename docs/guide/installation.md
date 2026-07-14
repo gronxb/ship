@@ -37,6 +37,16 @@ existing Kubernetes context from a Dockerfile project:
 ship --service demo
 ```
 
+Remove a deployed service and its Ship-managed local image copies:
+
+```sh
+ship down --service demo
+```
+
+Preview the deletion with `ship down --service demo --dry-run`. The default
+kind workflow removes the image from kind nodes and local Docker after the
+workload stops. Remote registry images and Compose-owned images are preserved.
+
 Fill `.env`:
 
 ```sh

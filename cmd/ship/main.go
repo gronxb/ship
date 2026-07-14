@@ -32,12 +32,14 @@ func run(ctx context.Context, args []string) error {
 		case "-h", "--help", "help":
 			fmt.Print(`Usage:
   ship [options]
+  ship down [options]
   ship install [options]
   ship upgrade [options]
   ship uninstall [options]
   ship dns publish [options]
 
 Commands:
+  down        remove a deployed service and its local images
   install     bootstrap ship infrastructure
   upgrade     update ship CLI and optionally infrastructure
   uninstall   remove ship infrastructure
@@ -57,6 +59,8 @@ Options:
 			return nil
 		case "install":
 			return runInstall(ctx, args[1:])
+		case "down":
+			return runDown(ctx, args[1:])
 		case "upgrade":
 			return runUpgrade(ctx, args[1:])
 		case "uninstall":
@@ -66,6 +70,35 @@ Options:
 		}
 	}
 	return runDeploy(ctx, args)
+}
+
+func runDown(ctx context.Context, args []string) error {
+	flags := flag.NewFlagSet("ship down", flag.ContinueOnError)
+	flags.SetOutput(os.Stderr)
+	config := loadConfig()
+	opts := deploy.DownOptions{}
+	flags.StringVar(&opts.ServiceName, "service", "", "DNS-safe service name")
+	flags.StringVar(&opts.Namespace, "namespace", configDefault(config, "SHIP_NAMESPACE", "ship-services"), "target Kubernetes namespace")
+	flags.StringVar(&opts.Domain, "domain", configDefault(config, "SHIP_DOMAIN", "example.com"), "base DNS domain")
+	flags.StringVar(&opts.Registry, "registry", configDefault(config, "REGISTRY", ""), "optional image registry")
+	flags.StringVar(&opts.KindCluster, "kind-cluster", configDefault(config, "KIND_CLUSTER", "ship"), "kind cluster name")
+	flags.BoolVar(&opts.DryRun, "dry-run", false, "print cleanup actions without deleting")
+	opts.DNSMode = configDefault(config, "SHIP_DNS", "manual")
+	opts.CloudflareAPIKey = cloudflareToken(config)
+	opts.CloudflareZoneID = configDefault(config, "CLOUDFLARE_ZONE_ID", configDefault(config, "CF_ZONE_ID", ""))
+	opts.CloudflareAccountID = configDefault(config, "CLOUDFLARE_ACCOUNT_ID", configDefault(config, "CF_ACCOUNT_ID", ""))
+	opts.CloudflareTunnelID = configDefault(config, "CLOUDFLARE_TUNNEL_ID", "")
+	opts.DashboardService = configDefault(config, "SHIP_DASHBOARD_SERVICE", "k8s")
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return nil
+		}
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("unexpected positional arguments: %v", flags.Args())
+	}
+	return deploy.Down(ctx, opts, os.Stdout)
 }
 
 func runDeploy(ctx context.Context, args []string) error {

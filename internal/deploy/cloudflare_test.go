@@ -128,6 +128,61 @@ func TestExposeCloudflareTunnelRoutePublishesSameHostname(t *testing.T) {
 	}
 }
 
+func TestRemoveCloudflareRouteDeletesTunnelIngressAndDNSRecords(t *testing.T) {
+	// Given a public Ship route and two DNS records for the same host.
+	deleted := map[string]bool{}
+	var putConfig map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/accounts/account-id/cfd_tunnel/tunnel-id/configurations":
+			w.Write([]byte(`{"success":true,"result":{"config":{"ingress":[{"hostname":"demo.example.com","service":"http://demo.ship-services.svc.cluster.local:80"},{"hostname":"keep.example.com","service":"http://keep.ship-services.svc.cluster.local:80"},{"service":"http_status:404"}]}}}`))
+		case r.Method == http.MethodPut && r.URL.Path == "/accounts/account-id/cfd_tunnel/tunnel-id/configurations":
+			if err := json.NewDecoder(r.Body).Decode(&putConfig); err != nil {
+				t.Fatal(err)
+			}
+			w.Write([]byte(`{"success":true,"result":{}}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/zones/zone-id/dns_records":
+			w.Write([]byte(`{"success":true,"result":[{"id":"record-a","type":"A"},{"id":"record-cname","type":"CNAME"}]}`))
+		case r.Method == http.MethodDelete && strings.HasPrefix(r.URL.Path, "/zones/zone-id/dns_records/"):
+			deleted[strings.TrimPrefix(r.URL.Path, "/zones/zone-id/dns_records/")] = true
+			w.Write([]byte(`{"success":true,"result":{}}`))
+		default:
+			t.Fatalf("unexpected Cloudflare request: %s %s", r.Method, r.URL.String())
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	// When the service route is removed.
+	err := RemoveCloudflareRoute(context.Background(), RemoveTunnelRouteOptions{
+		Host:         "demo.example.com",
+		Domain:       "example.com",
+		APIToken:     "token",
+		ZoneID:       "zone-id",
+		AccountID:    "account-id",
+		TunnelID:     "tunnel-id",
+		RemoveTunnel: true,
+		APIEndpoint:  server.URL,
+	})
+
+	// Then only that tunnel ingress disappears and every exact DNS record is deleted.
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawConfig, err := json.Marshal(putConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := string(rawConfig)
+	if strings.Contains(config, "demo.example.com") || !strings.Contains(config, "keep.example.com") || !strings.Contains(config, "http_status:404") {
+		t.Fatalf("unexpected tunnel cleanup body: %s", config)
+	}
+	for _, id := range []string{"record-a", "record-cname"} {
+		if !deleted[id] {
+			t.Fatalf("DNS record %s was not deleted: %v", id, deleted)
+		}
+	}
+}
+
 func TestPublishCloudflareRecordDeletesDuplicateSameTypeRecords(t *testing.T) {
 	deleted := map[string]bool{}
 	var patched bool

@@ -195,6 +195,18 @@ ship --service demo
 Open `https://demo.your-domain.com` to see `Hello Ship!`. For your own app, keep
 the same pattern: add a `Dockerfile`, then run `ship --service <name>`.
 
+Bring the service down when it is no longer needed:
+
+```sh
+ship down --service demo
+```
+
+`ship down` removes the Deployment, Service, HTTPRoute, generated env Secret,
+legacy Ingress, and Compose EndpointSlice. For the default local kind workflow,
+it also removes the deployed image from every kind node and from local Docker.
+Use `--dry-run` to preview the cleanup. Images pushed with `REGISTRY` and images
+owned by a Compose project stay in their remote registry or Compose project.
+
 For a multi-container Compose project, Ship auto-detects `compose.yaml`,
 `compose.yml`, `docker-compose.yaml`, or `docker-compose.yml` when no Dockerfile
 exists. A service named `gateway` is selected automatically; otherwise use an

@@ -51,10 +51,23 @@ func TestRunPrintsRichHelpWhenLongHelpFlagIsUsed(t *testing.T) {
 	})
 
 	// Then
-	for _, want := range []string{"Usage", "Commands", "Options", "install", "upgrade", "uninstall", "dns publish", "--service", "--dry-run", "--version"} {
+	for _, want := range []string{"Usage", "Commands", "Options", "down", "install", "upgrade", "uninstall", "dns publish", "--service", "--dry-run", "--version"} {
 		if !strings.Contains(output.String(), want) {
 			t.Fatalf("help output missing %q:\n%s", want, output.String())
 		}
+	}
+}
+
+func TestRunDownRequiresServiceName(t *testing.T) {
+	// Given no service name.
+	clearShipEnv(t)
+
+	// When down is invoked.
+	err := run(context.Background(), []string{"down", "--dry-run"})
+
+	// Then the CLI rejects the request at its boundary.
+	if err == nil || !strings.Contains(err.Error(), "--service is required") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
